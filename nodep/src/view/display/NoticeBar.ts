@@ -46,8 +46,8 @@ class NoticeBar {
 		if (needT < this._durT) {
 			needT = this._durT;
 		}
-		egret.Tween.removeTweens(this._label);
-		egret.Tween.get(this._label).to({ x: this._left / 2 - this._label.textWidth }, needT);
+		TweenTs.removeTweens(this._label);
+		TweenTs.get(this._label).to({ x: this._left / 2 - this._label.textWidth }, needT);
 		DelayCall.call(needT + 1000, this.nextOne, this, null, 1, "frameNodep_noticeBar" + this._hash);
 	}
 
@@ -72,7 +72,7 @@ class NoticeBar {
 	}
 
 	public stop(): void {
-		egret.Tween.removeTweens(this._label);
+		TweenTs.removeTweens(this._label);
 		DelayCall.removeCall("frameworknoticeBar" + this._g.hashCode);
 		DelayCall.removeCall("frameNodep_noticeBar" + this._hash);
 		this._g.addEventListener(egret.TouchEvent.TOUCH_TAP, this.tapHandler, this);

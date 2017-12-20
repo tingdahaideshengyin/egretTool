@@ -3,39 +3,209 @@ declare class Map<T, K> {
     private _values;
     constructor();
     set(key: T, value: K): void;
-    delete(key: T): void;
+    delete(key: T): K;
+    log(): void;
     get(key: T): K;
     has(key: T): boolean;
     forEach(fun: Function, thisObj: any): void;
     clear(): void;
 }
 /**
- * UTF8
+ * 对象池
+ * @author nodep
+ * @version 1.0
+ */
+declare class ObjPool {
+    private static _poolMap;
+    /**
+     * 通过class获取一个实例
+     * @param  {any} cls
+     * @returns any
+     */
+    static create(cls: any): any;
+    /**
+     * 释放一个
+     * @param  {any} c
+     * @returns void
+     */
+    static release(c: any): void;
+}
+/**
+ * 性能更稳定,移动更精确的精简tween
+ * 需要利用自己编写的触发器或直接用框架带的RenderManager做驱动。基于时间的，方便游戏中大量的位移动画。
+ * 长距离精确位移过程中如果有抖动飘逸感觉，请自己在get,set中对应值取整数。
+ * 因业务限制，暂时不做过多扩展
  * @version 1.0
  * @author nodep
  */
-declare class UTF8 {
+declare class TweenTs implements IRender {
+    private static _tweenMap;
     /**
-     * Unicode符号范围 | UTF-8编码方式
-     * (十六进制) | （二进制）
-     * --------------------+---------------------------------------------
-     * 0000 0000-0000 007F | 0xxxxxxx
-     * 0000 0080-0000 07FF | 110xxxxx 10xxxxxx
-     * 0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
-     * 0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+     * 设置到某个group中,可以通过group进行整体控制
+     * @param  {string} n
      */
+    static groupName: string;
     /**
-     *
-     * @param {String} str
-     * @returns {Uint8Array}
+     * 移除某个对象的所有tween
+     * @param  {any} t
+     * @returns void
      */
-    static stringToByteArray(str: string): Uint8Array;
+    static removeTweens(t: any): void;
     /**
-     *
-     * @param array {Uint8Array}
-     * @returns {String}
+     * 为某个对象构造一个tween动画
+     * 如果需要在执行过程中的响应函数,请自己在go的过程中设置一个get set做处理
+     * @param  {any} t
+     * @param  {boolean=true} autoRemove 自动移除正在运行的tween
+     * @param  {number=1} loopTimes 循环次数,<0表示无限循环,默认执行一次
+     * @param  {Function=null} completeHandler 每当动画执行一个循环之后都会调用这个函数
+     * @param  {any=null} thisObj 函数所在域
+     * @param  {any=null} args 结束时的参数数组
+     * @returns TweenTs
      */
-    static byteArrayToString(array: Uint8Array): string;
+    static get(t: any, autoRemove?: boolean, loopTimes?: number, completeHandler?: Function, thisObj?: any, args?: any[]): TweenTs;
+    private _loop;
+    private _comH;
+    private _tw;
+    private _tO;
+    private _args;
+    private _ts;
+    private _index;
+    private _focusT;
+    private _curT;
+    private _curObj;
+    private _startObj;
+    private dispose();
+    /**
+     * 如果你是单独使用这个类,请在enterFrame事件中,传入两次调用的差。
+     * 在Tween自身内部，不会来验证interval的真实和有效性。
+     * @param  {number} interval
+     * @returns void
+     */
+    renderUpdate(interval: number): void;
+    private setFocusToItem(its);
+    to(props: any, dur: number, esae?: Function): TweenTs;
+    from(props: any, dur: number, ease?: Function): TweenTs;
+    wait(dur: number): TweenTs;
+    call(c: Function, thisObj: any): TweenTs;
+}
+declare module nodep {
+    /**
+     * 直接拷贝egret.Ease需要的函数做扩展
+     */
+    class Ease {
+        static backOut(t: any): number;
+    }
+}
+/**
+ * 游戏通用的界面,继承之后可以通过GameWindow进行管理
+ * 界面的缩放不影响布局效果
+ * @author nodep
+ * @version 1.01
+ */
+declare class GameWindow extends eui.Component implements eui.UIComponent {
+    __inited: boolean;
+    protected __align: string;
+    private __offsetX;
+    private __offsetY;
+    /***所屬層級,需要在業務中自定義*/
+    layerType: string;
+    /**界面的唯一命名*/
+    typeName: string;
+    /**是否有遮罩,如果手动设置为有遮罩的,将会在弹出后阻挡后面的界面操作*/
+    pop: boolean;
+    /**界面是否已经创建完成,只有在创建完成的界面中才不会抛空*/
+    protected created: boolean;
+    private _initW;
+    private _initH;
+    private _backgrundColor;
+    private _backBt;
+    needDelayRemove: number;
+    private static _backShape;
+    /**
+     * 构造函数
+     * @param  {string} typeName 界面名称
+     * @param  {string} layerType 默认所在层
+     * 当一个界面构造完成后,一般需要下面几个步骤
+     * 1、删除partAdd
+     * 2、添加初始化代码
+     * 3、添加总刷新函数,并在create和reopen中调用
+     * 下面是一些关键函数
+     * @see addEventTap
+     * @see tapCallback
+     * @see update
+     * @see active
+     * @see beforeClose
+     * @see reOpen
+     */
+    constructor(typeName: string, layerType: string, backgrundColor?: number);
+    protected partAdded(partName: string, instance: any): void;
+    protected childrenCreated(): void;
+    protected updateSelf(): void;
+    /**
+     *再次加入舞臺
+     */
+    reOpen(): void;
+    protected addStageClose(): void;
+    private autoCloseHandler(evt);
+    /**
+     * 捕获消息
+     * @param  {number} updateType 消息编号
+     * @param  {any} updateObject 消息体
+     * @returns void
+     */
+    update(updateType: number, updateObject: any): void;
+    /**
+     * 关闭界面之前
+     * 如果要添加关闭动画则在实现中返回false,并实现自己的关闭动画。则关闭动画完成后彻底移除。
+     */
+    beforeClose(): boolean;
+    /**
+     * 舞台大小发生变化
+     */
+    resize(): void;
+    /**
+     * 界面被激活
+     * @returns void
+     */
+    active(): void;
+    /**
+     * 设置布局
+     * @param  {string} alignType 布局方式
+     * @param  {number=0} offsetX x偏移量
+     * @param  {number=0} offsetY y偏移量
+     * @see AlignType
+     */
+    align(alignType: string, offsetX?: number, offsetY?: number): void;
+    /**
+     * 为界面元素添加点击事件
+     * @param  {any} args 需要添加事件的partID,或容器(如果是容器会为容器中的所有子对象添加事件)
+     * @param  {string=""} paName args的父容器节点,只对2级容器有效。如果界面存在三级容器，请重新设计。或创建界面组件控制器
+     * @see tapCallback
+     */
+    protected addEventTap(args: any, paName?: string): void;
+    /**
+     * 响应函数
+     * @param  {string} childName
+     * @returns void
+     */
+    protected tapCallback(childName: string): void;
+    private eventTapHandler(evt);
+    /**
+     * 弹出界面
+     * @param  {number=200} durT 经过的时间
+     * @param  {number=0} fromScale 从多小或多大
+     * @param {boolean=true} useBackOut 是否应用此效果
+     */
+    protected popup(durT?: number, fromScale?: number, useBackOut?: boolean): void;
+    protected popOut(durT?: number, toScale?: number): boolean;
+    /**
+     * 获取某个一级输入框(TextInput)
+     * @param  {string} str partID
+     */
+    protected getTxtInput(str: string): eui.TextInput;
+    autoScale(): void;
+    protected justScale(): void;
+    protected sound(sn: string, dt?: number): void;
 }
 /**
  * 可视化组建基类
@@ -688,136 +858,26 @@ declare class WinsManager {
      */
     gameStage(): egret.Stage;
 }
+declare module nodep {
+    class TweenItem {
+        type: string;
+        props: any;
+        durT: number;
+        ease: Function;
+        constructor(t: string);
+        dispose(): void;
+    }
+}
 /**
- * 对象池
+ * 事件调度
  * @author nodep
  * @version 1.0
  */
-declare class ObjPool {
-    private static _poolMap;
-    /**
-     * 通过class获取一个实例
-     * @param  {any} cls
-     * @returns any
-     */
-    static create(cls: any): any;
-    /**
-     * 释放一个
-     * @param  {any} c
-     * @returns void
-     */
-    static release(c: any): void;
-}
-/**
- * 游戏通用的界面,继承之后可以通过GameWindow进行管理
- * 界面的缩放不影响布局效果
- * @author nodep
- * @version 1.01
- */
-declare class GameWindow extends eui.Component implements eui.UIComponent {
-    __inited: boolean;
-    protected __align: string;
-    private __offsetX;
-    private __offsetY;
-    /***所屬層級,需要在業務中自定義*/
-    layerType: string;
-    /**界面的唯一命名*/
-    typeName: string;
-    /**是否有遮罩,如果手动设置为有遮罩的,将会在弹出后阻挡后面的界面操作*/
-    pop: boolean;
-    /**界面是否已经创建完成,只有在创建完成的界面中才不会抛空*/
-    protected created: boolean;
-    private _initW;
-    private _initH;
-    private _backgrundColor;
-    private _backBt;
-    needDelayRemove: number;
-    private static _backShape;
-    /**
-     * 构造函数
-     * @param  {string} typeName 界面名称
-     * @param  {string} layerType 默认所在层
-     * 当一个界面构造完成后,一般需要下面几个步骤
-     * 1、删除partAdd
-     * 2、添加初始化代码
-     * 3、添加总刷新函数,并在create和reopen中调用
-     * 下面是一些关键函数
-     * @see addEventTap
-     * @see tapCallback
-     * @see update
-     * @see active
-     * @see beforeClose
-     * @see reOpen
-     */
-    constructor(typeName: string, layerType: string, backgrundColor?: number);
-    protected partAdded(partName: string, instance: any): void;
-    protected childrenCreated(): void;
-    protected updateSelf(): void;
-    /**
-     *再次加入舞臺
-     */
-    reOpen(): void;
-    protected addStageClose(): void;
-    private autoCloseHandler(evt);
-    /**
-     * 捕获消息
-     * @param  {number} updateType 消息编号
-     * @param  {any} updateObject 消息体
-     * @returns void
-     */
-    update(updateType: number, updateObject: any): void;
-    /**
-     * 关闭界面之前
-     * 如果要添加关闭动画则在实现中返回false,并实现自己的关闭动画。则关闭动画完成后彻底移除。
-     */
-    beforeClose(): boolean;
-    /**
-     * 舞台大小发生变化
-     */
-    resize(): void;
-    /**
-     * 界面被激活
-     * @returns void
-     */
-    active(): void;
-    /**
-     * 设置布局
-     * @param  {string} alignType 布局方式
-     * @param  {number=0} offsetX x偏移量
-     * @param  {number=0} offsetY y偏移量
-     * @see AlignType
-     */
-    align(alignType: string, offsetX?: number, offsetY?: number): void;
-    /**
-     * 为界面元素添加点击事件
-     * @param  {any} args 需要添加事件的partID,或容器(如果是容器会为容器中的所有子对象添加事件)
-     * @param  {string=""} paName args的父容器节点,只对2级容器有效。如果界面存在三级容器，请重新设计。或创建界面组件控制器
-     * @see tapCallback
-     */
-    protected addEventTap(args: any, paName?: string): void;
-    /**
-     * 响应函数
-     * @param  {string} childName
-     * @returns void
-     */
-    protected tapCallback(childName: string): void;
-    private eventTapHandler(evt);
-    /**
-     * 弹出界面
-     * @param  {number=200} durT 经过的时间
-     * @param  {number=0} fromScale 从多小或多大
-     * @param {boolean=true} useBackOut 是否应用此效果
-     */
-    protected popup(durT?: number, fromScale?: number, useBackOut?: boolean): void;
-    protected popOut(durT?: number, toScale?: number): boolean;
-    /**
-     * 获取某个一级输入框(TextInput)
-     * @param  {string} str partID
-     */
-    protected getTxtInput(str: string): eui.TextInput;
-    autoScale(): void;
-    protected justScale(): void;
-    protected sound(sn: string, dt?: number): void;
+declare class EventDispatcher {
+    private static _lis;
+    static regist(type: number, handler: Function, thisObj: any): void;
+    static unregist(type: number, handler: Function, thisObj: any): void;
+    static dispatch(type: number, args?: any[]): void;
 }
 /**
  * 临时加载的资源中心
@@ -1497,13 +1557,30 @@ declare class PackOut {
     dumpInfo(): void;
 }
 /**
- * 事件调度
- * @author nodep
+ * UTF8
  * @version 1.0
+ * @author nodep
  */
-declare class EventDispatcher {
-    private static _lis;
-    static regist(type: number, handler: Function, thisObj: any): void;
-    static unregist(type: number, handler: Function, thisObj: any): void;
-    static dispatch(type: number, args?: any[]): void;
+declare class UTF8 {
+    /**
+     * Unicode符号范围 | UTF-8编码方式
+     * (十六进制) | （二进制）
+     * --------------------+---------------------------------------------
+     * 0000 0000-0000 007F | 0xxxxxxx
+     * 0000 0080-0000 07FF | 110xxxxx 10xxxxxx
+     * 0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
+     * 0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+     */
+    /**
+     *
+     * @param {String} str
+     * @returns {Uint8Array}
+     */
+    static stringToByteArray(str: string): Uint8Array;
+    /**
+     *
+     * @param array {Uint8Array}
+     * @returns {String}
+     */
+    static byteArrayToString(array: Uint8Array): string;
 }

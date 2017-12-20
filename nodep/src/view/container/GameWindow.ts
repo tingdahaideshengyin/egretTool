@@ -263,14 +263,14 @@ class GameWindow extends eui.Component implements eui.UIComponent {
             this.parent.alpha = 0;
             this.parent.scaleX = fromScale;
             this.parent.scaleY = fromScale;
-            egret.Tween.removeTweens(this.parent);
-            egret.Tween.get(this.parent).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? egret.Ease.backOut : null);
+            TweenTs.removeTweens(this.parent);
+            TweenTs.get(this.parent).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? nodep.Ease.backOut : null);
         } else if (NodepConfig.auto == 0) {
             this.alpha = 0;
             this.scaleX = fromScale;
             this.scaleY = fromScale;
-            egret.Tween.removeTweens(this);
-            egret.Tween.get(this).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? egret.Ease.backOut : null);
+            TweenTs.removeTweens(this);
+            TweenTs.get(this).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? nodep.Ease.backOut : null);
         }
     }
 
@@ -281,11 +281,11 @@ class GameWindow extends eui.Component implements eui.UIComponent {
         }
         this.needDelayRemove = durT;
         if (NodepConfig.auto == 1 && this.parent != null) {
-            egret.Tween.removeTweens(this.parent);
-            egret.Tween.get(this.parent).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
+            TweenTs.removeTweens(this.parent);
+            TweenTs.get(this.parent).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
         } else if (NodepConfig.auto == 0) {
-            egret.Tween.removeTweens(this);
-            egret.Tween.get(this).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
+            TweenTs.removeTweens(this);
+            TweenTs.get(this).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
         }
         return true;
     }

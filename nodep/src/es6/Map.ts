@@ -17,12 +17,18 @@ class Map<T, K> {
 		}
 	}
 
-	public delete(key: T): void {
+	public delete(key: T): K {
 		var idx: number = this._keys.indexOf(key);
+		var k: K;
 		if (idx >= 0) {
 			this._keys.splice(idx, 1);
-			this._values.splice(idx, 1);
+			k = this._values.splice(idx, 1)[0];
 		}
+		return k;
+	}
+
+	public log(): void {
+		LogTrace.log("mapInfo=k:" + this._keys.length + "v:" + this._values.length);
 	}
 
 	public get(key: T): K {

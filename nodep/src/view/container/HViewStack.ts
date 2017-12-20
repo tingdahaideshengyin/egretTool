@@ -47,7 +47,7 @@ class HViewStack {
 	 */
 	public initPageTo(index: number, data: any): void {
 		var comp: GameComp = HViewStack.getPage(this._keys[index]);
-		egret.Tween.removeTweens(comp);
+		TweenTs.removeTweens(comp);
 		comp.data = data;
 		if (this._focus) {
 			this._box.removeChild(this._focus);
@@ -76,18 +76,18 @@ class HViewStack {
 		var toX: number = 0;
 		var idx: number = this._focusIndex;
 		if (index > this._focusIndex) {//向左翻
-			egret.Tween.removeTweens(comp);
+			TweenTs.removeTweens(comp);
 			comp.x = this._box.width;
-			egret.Tween.get(comp).to({ x: 0 }, 400);
+			TweenTs.get(comp).to({ x: 0 }, 400);
 			comp.data = data;
 			this._box.addChild(comp);
 			toX = -this._box.width;
 			this._focus = comp;
 			this._focusIndex = index;
 		} else if (index < this._focusIndex) {//向右翻
-			egret.Tween.removeTweens(comp);
+			TweenTs.removeTweens(comp);
 			comp.x = -this._box.width;
-			egret.Tween.get(comp).to({ x: 0 }, 400);
+			TweenTs.get(comp).to({ x: 0 }, 400);
 			comp.data = data;
 			this._box.addChild(comp);
 			toX = this._box.width;
@@ -97,8 +97,8 @@ class HViewStack {
 			this.initPageTo(index, data);
 		}
 		if (toX != 0 && this._focus != tar) {
-			egret.Tween.removeTweens(tar);
-			egret.Tween.get(tar).to({ x: toX }, 300);
+			TweenTs.removeTweens(tar);
+			TweenTs.get(tar).to({ x: toX }, 300);
 			DelayCall.call(300, this.removeHandler, this, [tar], 1, "hviewDelayRemove_" + tar.hashCode);
 		}
 	}

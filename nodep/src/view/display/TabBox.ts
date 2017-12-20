@@ -59,10 +59,10 @@ class TabBox extends egret.DisplayObjectContainer {
 			fl = this._loaders[1];
 			hide = this._loaders[0];
 		}
-		egret.Tween.removeTweens(hide);
-		egret.Tween.get(hide).to({ alpha: 0 }, 300);
-		egret.Tween.removeTweens(fl);
-		egret.Tween.get(fl).to({ alpha: 1 }, 300);
+		TweenTs.removeTweens(hide);
+		TweenTs.get(hide).to({ alpha: 0 }, 300);
+		TweenTs.removeTweens(fl);
+		TweenTs.get(fl).to({ alpha: 1 }, 300);
 		fl.url = this._imgs[this._index];
 		var nextIndex: number = this._index + 1;
 		if (nextIndex >= this._imgs.length)

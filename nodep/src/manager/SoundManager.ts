@@ -31,7 +31,7 @@ class SoundManager {
 			return;
 		this._nowBg = mp3;
 		if (this._bgC) {
-			egret.Tween.removeTweens(this._bgC);
+			TweenTs.removeTweens(this._bgC);
 			try {
 				this._bgC.stop();
 			} catch (e) {
@@ -45,7 +45,7 @@ class SoundManager {
 		if (this._bgC == null)
 			return;
 		this._bgC.volume = 0;
-		egret.Tween.get(this._bgC).to({ volume: NodepConfig.bgVolume }, 3000);
+		TweenTs.get(this._bgC).to({ volume: NodepConfig.bgVolume }, 3000);
 	}
 
 	/**

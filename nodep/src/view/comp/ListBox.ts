@@ -59,11 +59,11 @@ class ListBox {
 
 	public toTop(delayc: boolean = true, move: boolean = false): void {
 		var toy: number = 0;
-		egret.Tween.removeTweens(this._box);
+		TweenTs.removeTweens(this._box);
 		if (!move)
 			this._box.scrollV = toy;
 		else {
-			egret.Tween.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
+			TweenTs.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
 		}
 		if (delayc)
 			DelayCall.call(50, this.toTop, this, [false]);
@@ -79,11 +79,11 @@ class ListBox {
 		if (toy < 0)
 			toy = 0;
 		if (toy >= 0 && toy < this._box.getBounds().height) {
-			egret.Tween.removeTweens(this._box);
+			TweenTs.removeTweens(this._box);
 			if (!move)
 				this._box.scrollV = toy;
 			else {
-				egret.Tween.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
+				TweenTs.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
 			}
 		}
 		if (delayc)
@@ -175,8 +175,8 @@ class ListBox {
 		pIndex = this._datas.indexOf(render.getData());
 		if (pIndex >= 0)
 			this._datas.splice(pIndex, 1);
-		egret.Tween.removeTweens(target);
-		egret.Tween.get(target).to({ alpha: 0, x: -target.width }, 100);
+		TweenTs.removeTweens(target);
+		TweenTs.get(target).to({ alpha: 0, x: -target.width }, 100);
 		DelayCall.call(120, this.removeOne, this, [target]);
 		this.updatePoses(true);
 	}
@@ -228,9 +228,9 @@ class ListBox {
 			render = this._items[i];
 			(render as egret.DisplayObject).alpha = 1;
 			render.x = 0;
-			egret.Tween.removeTweens(render);
+			TweenTs.removeTweens(render);
 			if (byMc)
-				egret.Tween.get(render).to({ y: fy }, 100);
+				TweenTs.get(render).to({ y: fy }, 100);
 			else
 				render.y = fy;
 			if (this._everyH > 0) {

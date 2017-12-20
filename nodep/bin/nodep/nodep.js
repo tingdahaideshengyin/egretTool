@@ -29,10 +29,15 @@ var Map = (function () {
     };
     Map.prototype.delete = function (key) {
         var idx = this._keys.indexOf(key);
+        var k;
         if (idx >= 0) {
             this._keys.splice(idx, 1);
-            this._values.splice(idx, 1);
+            k = this._values.splice(idx, 1)[0];
         }
+        return k;
+    };
+    Map.prototype.log = function () {
+        LogTrace.log("mapInfo=k:" + this._keys.length + "v:" + this._values.length);
     };
     Map.prototype.get = function (key) {
         var idx = this._keys.indexOf(key);
@@ -58,102 +63,508 @@ var Map = (function () {
 }());
 __reflect(Map.prototype, "Map");
 /**
- * UTF8
+ * 对象池
+ * @author nodep
+ * @version 1.0
+ */
+var ObjPool = (function () {
+    function ObjPool() {
+    }
+    /**
+     * 通过class获取一个实例
+     * @param  {any} cls
+     * @returns any
+     */
+    ObjPool.create = function (cls) {
+        var key = egret.getQualifiedClassName(cls);
+        if (!this._poolMap.has(key))
+            this._poolMap.set(key, []);
+        var cs = this._poolMap.get(key);
+        if (cs.length == 0)
+            cs.push(new cls());
+        return cs.pop();
+    };
+    /**
+     * 释放一个
+     * @param  {any} c
+     * @returns void
+     */
+    ObjPool.release = function (c) {
+        var key = egret.getQualifiedClassName(c);
+        var cs = this._poolMap.get(key);
+        if (cs)
+            cs.push(c);
+    };
+    ObjPool._poolMap = new Map();
+    return ObjPool;
+}());
+__reflect(ObjPool.prototype, "ObjPool");
+/**
+ * 性能更稳定,移动更精确的精简tween
+ * 需要利用自己编写的触发器或直接用框架带的RenderManager做驱动。基于时间的，方便游戏中大量的位移动画。
+ * 长距离精确位移过程中如果有抖动飘逸感觉，请自己在get,set中对应值取整数。
+ * 因业务限制，暂时不做过多扩展
  * @version 1.0
  * @author nodep
  */
-var UTF8 = (function () {
-    function UTF8() {
+var TweenTs = (function () {
+    function TweenTs() {
+        this._ts = [];
+        this._index = 0;
     }
+    Object.defineProperty(TweenTs, "groupName", {
+        /**
+         * 设置到某个group中,可以通过group进行整体控制
+         * @param  {string} n
+         */
+        set: function (n) {
+        },
+        enumerable: true,
+        configurable: true
+    });
     /**
-     * Unicode符号范围 | UTF-8编码方式
-     * (十六进制) | （二进制）
-     * --------------------+---------------------------------------------
-     * 0000 0000-0000 007F | 0xxxxxxx
-     * 0000 0080-0000 07FF | 110xxxxx 10xxxxxx
-     * 0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
-     * 0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+     * 移除某个对象的所有tween
+     * @param  {any} t
+     * @returns void
      */
-    /**
-     *
-     * @param {String} str
-     * @returns {Uint8Array}
-     */
-    UTF8.stringToByteArray = function (str) {
-        // 110xxxxx = 0xC0      2byte
-        // 00011111 = 0x1F
-        // 1110xxxx = 0xE0      3byte
-        // 11110xxx = 0xF0      4byte
-        // 10xxxxxx = 0x80
-        // 00111111 = 0x3F
-        var array = [];
-        for (var i = 0; i < str.length; ++i) {
-            var code = str.charCodeAt(i);
-            if (code < 0x007F) {
-                array.push(code);
-            }
-            else if (code < 0x07FF) {
-                array.push(code >> 6 & 0x1F | 0xC0);
-                array.push((code & 0x3F) | 0x80);
-            }
-            else if (code < 0xFFFF) {
-                array.push(code >> 12 & 0xF | 0xE0);
-                array.push(code >> 6 & 0x3F | 0x80);
-                array.push(code & 0x3F | 0x80);
-            }
-            else {
-                array.push(code >> 18 & 0xF8 | 0xF0);
-                array.push(code >> 12 & 0x3F | 0x80);
-                array.push(code >> 6 & 0x3F | 0x80);
-                array.push(code & 0x3F | 0x80);
-            }
-        }
-        return new Uint8Array(array);
+    TweenTs.removeTweens = function (t) {
+        if (!this._tweenMap.has(t))
+            return;
+        var tw = this._tweenMap.delete(t);
+        RenderManager.getIns().unregistRender(tw);
+        tw.dispose();
+        this._tweenMap.log();
     };
     /**
-     *
-     * @param array {Uint8Array}
-     * @returns {String}
+     * 为某个对象构造一个tween动画
+     * 如果需要在执行过程中的响应函数,请自己在go的过程中设置一个get set做处理
+     * @param  {any} t
+     * @param  {boolean=true} autoRemove 自动移除正在运行的tween
+     * @param  {number=1} loopTimes 循环次数,<0表示无限循环,默认执行一次
+     * @param  {Function=null} completeHandler 每当动画执行一个循环之后都会调用这个函数
+     * @param  {any=null} thisObj 函数所在域
+     * @param  {any=null} args 结束时的参数数组
+     * @returns TweenTs
      */
-    UTF8.byteArrayToString = function (array) {
-        var str = '';
-        var count = array.length;
-        var idx = 0;
-        var code = 0;
-        while (idx < count) {
-            var byte1 = array[idx];
-            if ((byte1 & 0x80) === 0) {
-                code = byte1;
-                idx += 1;
-            }
-            else if ((byte1 >> 5 << 5) === 0xC0) {
-                var byte2 = array[idx + 1];
-                code = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
-                idx += 2;
-            }
-            else if ((byte1 >> 4 << 4) === 0xE0) {
-                var byte2 = array[idx + 1];
-                var byte3 = array[idx + 2];
-                code = (0xF & byte1) << 12 | (byte2 & 0x3F) << 6 | (byte3 & 0x3F);
-                idx += 3;
-            }
-            else if ((byte1 >> 3 << 3) === 0xF0) {
-                var byte2 = array[idx + 1];
-                var byte3 = array[idx + 2];
-                var byte4 = array[idx + 3];
-                code = (0xF & byte1 << 18) | (byte2 << 12 & 0x3F) | (byte3 << 6 & 0x3F) | (byte4 & 0x3F);
-                idx += 4;
-            }
-            else {
-                throw new Error('can not decode utf8 string');
-            }
-            str += String.fromCharCode(code);
-        }
-        return str;
+    TweenTs.get = function (t, autoRemove, loopTimes, completeHandler, thisObj, args) {
+        if (autoRemove === void 0) { autoRemove = true; }
+        if (loopTimes === void 0) { loopTimes = 1; }
+        if (completeHandler === void 0) { completeHandler = null; }
+        if (thisObj === void 0) { thisObj = null; }
+        if (args === void 0) { args = null; }
+        if (autoRemove)
+            this.removeTweens(t);
+        var tw = new TweenTs();
+        tw._tw = t;
+        tw._loop = loopTimes;
+        tw._comH = completeHandler;
+        tw._tO = thisObj;
+        tw._args = args;
+        this._tweenMap.set(t, tw);
+        return tw;
     };
-    return UTF8;
+    TweenTs.prototype.dispose = function () {
+        this._comH = null;
+        this._tw = null;
+        this._tO = null;
+        this._args = null;
+        while (this._ts.length > 0) {
+            this._ts.pop().dispose();
+        }
+        this._ts = null;
+        this._focusT = null;
+        this._curObj = null;
+        this._startObj = null;
+    };
+    /**
+     * 如果你是单独使用这个类,请在enterFrame事件中,传入两次调用的差。
+     * 在Tween自身内部，不会来验证interval的真实和有效性。
+     * @param  {number} interval
+     * @returns void
+     */
+    TweenTs.prototype.renderUpdate = function (interval) {
+        if (!this._curObj)
+            return;
+        this._curT += interval;
+        var key;
+        for (key in this._curObj) {
+            if (this._focusT.ease != null)
+                this._tw[key] = this._startObj[key] + this._focusT.ease.call(nodep.Ease, this._curT / this._focusT.durT);
+            else
+                this._tw[key] = this._startObj[key] + Math.min(this._curT / this._focusT.durT, 1) * this._curObj[key];
+        }
+        if (this._curT >= this._focusT.durT) {
+            this._index++;
+            if (this._index >= this._ts.length) {
+                if (this._comH != null)
+                    this._comH.apply(this._tO, this._args);
+                this._loop--;
+                if (this._loop <= 0) {
+                    TweenTs.removeTweens(this._tw);
+                    return;
+                }
+                this._index = 0;
+            }
+            this.setFocusToItem(this._ts[this._index]);
+        }
+    };
+    TweenTs.prototype.setFocusToItem = function (its) {
+        this._focusT = its;
+        this._curObj = new Object();
+        this._startObj = new Object();
+        var key;
+        for (key in its.props) {
+            this._curObj[key] = its.props[key] - this._tw[key];
+            this._startObj[key] = this._tw[key];
+        }
+        this._curT = 0;
+    };
+    TweenTs.prototype.to = function (props, dur, esae) {
+        if (esae === void 0) { esae = null; }
+        var ts = new nodep.TweenItem("go");
+        ts.durT = dur;
+        ts.ease = esae;
+        ts.props = props;
+        this._ts.push(ts);
+        if (!this._focusT)
+            this.setFocusToItem(ts);
+        RenderManager.getIns().registRender(this);
+        return this;
+    };
+    TweenTs.prototype.from = function (props, dur, ease) {
+        if (ease === void 0) { ease = null; }
+        return this;
+    };
+    TweenTs.prototype.wait = function (dur) {
+        return this;
+    };
+    TweenTs.prototype.call = function (c, thisObj) {
+        return this;
+    };
+    TweenTs._tweenMap = new Map();
+    return TweenTs;
 }());
-__reflect(UTF8.prototype, "UTF8");
+__reflect(TweenTs.prototype, "TweenTs", ["IRender"]);
+var nodep;
+(function (nodep) {
+    /**
+     * 直接拷贝egret.Ease需要的函数做扩展
+     */
+    var Ease = (function () {
+        function Ease() {
+        }
+        Ease.backOut = function (t) {
+            return (--t * t * ((1.7 + 1) * t + 1.7) + 1);
+        };
+        return Ease;
+    }());
+    nodep.Ease = Ease;
+    __reflect(Ease.prototype, "nodep.Ease");
+})(nodep || (nodep = {}));
+/**
+ * 游戏通用的界面,继承之后可以通过GameWindow进行管理
+ * 界面的缩放不影响布局效果
+ * @author nodep
+ * @version 1.01
+ */
+var GameWindow = (function (_super) {
+    __extends(GameWindow, _super);
+    /**
+     * 构造函数
+     * @param  {string} typeName 界面名称
+     * @param  {string} layerType 默认所在层
+     * 当一个界面构造完成后,一般需要下面几个步骤
+     * 1、删除partAdd
+     * 2、添加初始化代码
+     * 3、添加总刷新函数,并在create和reopen中调用
+     * 下面是一些关键函数
+     * @see addEventTap
+     * @see tapCallback
+     * @see update
+     * @see active
+     * @see beforeClose
+     * @see reOpen
+     */
+    function GameWindow(typeName, layerType, backgrundColor) {
+        if (backgrundColor === void 0) { backgrundColor = -1; }
+        var _this = _super.call(this) || this;
+        //非初次加入舞台
+        _this.__inited = false;
+        _this.__align = "NONE";
+        _this.__offsetX = 0;
+        _this.__offsetY = 0;
+        /***所屬層級,需要在業務中自定義*/
+        _this.layerType = "";
+        /**是否有遮罩,如果手动设置为有遮罩的,将会在弹出后阻挡后面的界面操作*/
+        _this.pop = false;
+        /**界面是否已经创建完成,只有在创建完成的界面中才不会抛空*/
+        _this.created = false;
+        _this._backgrundColor = -1;
+        _this.needDelayRemove = 0;
+        _this._backgrundColor = backgrundColor;
+        _this.typeName = typeName;
+        _this.layerType = layerType;
+        _this.skinName = egret.getQualifiedClassName(_this) + "Skin";
+        return _this;
+    }
+    GameWindow.prototype.partAdded = function (partName, instance) {
+        instance.name = partName;
+        if (partName.indexOf("helpTip_") >= 0) {
+            NodepManager.getIns().addHelpTipHandler(instance);
+        }
+        _super.prototype.partAdded.call(this, partName, instance);
+    };
+    GameWindow.prototype.childrenCreated = function () {
+        _super.prototype.childrenCreated.call(this);
+        if (this._backgrundColor >= 0) {
+            var rt = new egret.RenderTexture();
+            GameWindow._backShape.graphics.clear();
+            GameWindow._backShape.graphics.beginFill(this._backgrundColor);
+            GameWindow._backShape.graphics.drawRect(0, 0, 1, 1);
+            GameWindow._backShape.graphics.endFill();
+            rt.drawToTexture(GameWindow._backShape);
+            this._backBt = new egret.Bitmap(rt);
+            this.addChildAt(this._backBt, 0);
+        }
+        this.visible = true;
+        this.created = true;
+        this._initW = this.width;
+        this._initH = this.height;
+        if (NodepConfig.auto == 1)
+            this.autoScale();
+        this.resize();
+        this.updateSelf();
+    };
+    GameWindow.prototype.updateSelf = function () {
+    };
+    /**
+     *再次加入舞臺
+     */
+    GameWindow.prototype.reOpen = function () {
+        this.visible = true;
+        if (NodepConfig.auto == 1)
+            this.autoScale();
+        if (this._backBt) {
+            this.addChildAt(this._backBt, 0);
+        }
+        this.resize();
+        if (this.created)
+            this.updateSelf();
+    };
+    GameWindow.prototype.addStageClose = function () {
+        this.stage.addEventListener(egret.TouchEvent.TOUCH_TAP, this.autoCloseHandler, this);
+    };
+    GameWindow.prototype.autoCloseHandler = function (evt) {
+        if (evt.target instanceof egret.Shape)
+            WinsManager.getIns().closeWin(this);
+    };
+    /**
+     * 捕获消息
+     * @param  {number} updateType 消息编号
+     * @param  {any} updateObject 消息体
+     * @returns void
+     */
+    GameWindow.prototype.update = function (updateType, updateObject) {
+    };
+    /**
+     * 关闭界面之前
+     * 如果要添加关闭动画则在实现中返回false,并实现自己的关闭动画。则关闭动画完成后彻底移除。
+     */
+    GameWindow.prototype.beforeClose = function () {
+        if (this.stage && this.stage.hasEventListener(egret.TouchEvent.TOUCH_TAP))
+            this.stage.removeEventListener(egret.TouchEvent.TOUCH_TAP, this.autoCloseHandler, this);
+        if (this._backBt && this._backBt.parent) {
+            this._backBt.parent.removeChild(this._backBt);
+            this.needDelayRemove = 1;
+        }
+        return true;
+    };
+    /**
+     * 舞台大小发生变化
+     */
+    GameWindow.prototype.resize = function () {
+        switch (this.__align) {
+            case AlignType.CENTER_STAGE:
+                if (NodepConfig.auto == 1 && this.parent != null) {
+                    this.parent.x = Math.floor(WinsManager.stageWidth / 2);
+                    this.parent.y = Math.floor(WinsManager.stageHeight / 2);
+                }
+                else {
+                    this.x = Math.floor(WinsManager.stageWidth / 2);
+                    this.y = Math.floor(WinsManager.stageHeight / 2);
+                }
+                break;
+            case AlignType.TOP_LEFT:
+                this.x = this.__offsetX;
+                this.y = this.__offsetY;
+                break;
+            case AlignType.TOP_CENTER:
+                this.x = (WinsManager.stageWidth - this.width * this.scaleX) / 2 + this.__offsetX;
+                this.y = this.__offsetY;
+                break;
+            case AlignType.TOP_RIGHT:
+                this.x = WinsManager.stageWidth - this.width * this.scaleX + this.__offsetX;
+                this.y = this.__offsetY;
+                break;
+            case AlignType.CENTER:
+                this.x = (WinsManager.stageWidth - this.width * this.scaleX) / 2 + this.__offsetX;
+                this.y = (WinsManager.stageHeight - this.height * this.scaleY) / 2 + this.__offsetY;
+                break;
+            case AlignType.BOTTOM_LEFT:
+                this.x = this.__offsetX;
+                this.y = WinsManager.stageHeight - this.height * this.scaleY + this.__offsetY;
+                break;
+            case AlignType.BOTTOM_CENTER:
+                this.x = this.x = (WinsManager.stageWidth - this.width * this.scaleX) / 2 + this.__offsetX;
+                this.y = WinsManager.stageHeight - this.height * this.scaleY + this.__offsetY;
+                break;
+            case AlignType.BOTTOM_RIGHT:
+                this.x = WinsManager.stageWidth - this.width * this.scaleX + this.__offsetX;
+                this.y = WinsManager.stageHeight - this.height * this.scaleY + this.__offsetY;
+                break;
+        }
+        if (this._backBt != null) {
+            this._backBt.scaleX = this.width;
+            this._backBt.scaleY = this.height;
+        }
+    };
+    /**
+     * 界面被激活
+     * @returns void
+     */
+    GameWindow.prototype.active = function () {
+    };
+    /**
+     * 设置布局
+     * @param  {string} alignType 布局方式
+     * @param  {number=0} offsetX x偏移量
+     * @param  {number=0} offsetY y偏移量
+     * @see AlignType
+     */
+    GameWindow.prototype.align = function (alignType, offsetX, offsetY) {
+        if (offsetX === void 0) { offsetX = 0; }
+        if (offsetY === void 0) { offsetY = 0; }
+        this.__align = alignType;
+        this.__offsetX = offsetX * this.scaleX;
+        this.__offsetY = offsetY * this.scaleY;
+        if (this.stage != null)
+            this.resize();
+    };
+    /**
+     * 为界面元素添加点击事件
+     * @param  {any} args 需要添加事件的partID,或容器(如果是容器会为容器中的所有子对象添加事件)
+     * @param  {string=""} paName args的父容器节点,只对2级容器有效。如果界面存在三级容器，请重新设计。或创建界面组件控制器
+     * @see tapCallback
+     */
+    GameWindow.prototype.addEventTap = function (args, paName) {
+        if (paName === void 0) { paName = ""; }
+        if (args instanceof egret.DisplayObject) {
+            args.addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
+        }
+        else {
+            switch (typeof args) {
+                case "string":
+                    if (paName == "")
+                        this.getChildByName(args).addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
+                    else
+                        this.getChildByName(paName).getChildByName(args).addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
+                    break;
+                case "object":
+                    var key;
+                    for (key in args) {
+                        this[args[key]].addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
+                    }
+                    break;
+                default:
+                    throw (new Error(NodepErrorType.PARAM_TYPE_ERROR));
+            }
+        }
+    };
+    /**
+     * 响应函数
+     * @param  {string} childName
+     * @returns void
+     */
+    GameWindow.prototype.tapCallback = function (childName) {
+    };
+    GameWindow.prototype.eventTapHandler = function (evt) {
+        if (evt.currentTarget instanceof eui.Image) {
+            evt.currentTarget.scaleX = evt.currentTarget.scaleY = 0.9;
+            DelayCall.call(20, function handle(target) {
+                target.scaleX = target.scaleY = 1;
+            }, this, [evt.currentTarget]);
+        }
+        this.tapCallback(evt.currentTarget.name);
+    };
+    /**
+     * 弹出界面
+     * @param  {number=200} durT 经过的时间
+     * @param  {number=0} fromScale 从多小或多大
+     * @param {boolean=true} useBackOut 是否应用此效果
+     */
+    GameWindow.prototype.popup = function (durT, fromScale, useBackOut) {
+        if (durT === void 0) { durT = 200; }
+        if (fromScale === void 0) { fromScale = 0; }
+        if (useBackOut === void 0) { useBackOut = true; }
+        if (NodepConfig.auto == 1 && this.parent != null) {
+            this.parent.alpha = 0;
+            this.parent.scaleX = fromScale;
+            this.parent.scaleY = fromScale;
+            TweenTs.removeTweens(this.parent);
+            TweenTs.get(this.parent).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? nodep.Ease.backOut : null);
+        }
+        else if (NodepConfig.auto == 0) {
+            this.alpha = 0;
+            this.scaleX = fromScale;
+            this.scaleY = fromScale;
+            TweenTs.removeTweens(this);
+            TweenTs.get(this).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? nodep.Ease.backOut : null);
+        }
+    };
+    GameWindow.prototype.popOut = function (durT, toScale) {
+        if (durT === void 0) { durT = 200; }
+        if (toScale === void 0) { toScale = 0; }
+        if (this._backBt && this._backBt.parent) {
+            this._backBt.parent.removeChild(this._backBt);
+            this.needDelayRemove = 1;
+        }
+        this.needDelayRemove = durT;
+        if (NodepConfig.auto == 1 && this.parent != null) {
+            TweenTs.removeTweens(this.parent);
+            TweenTs.get(this.parent).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
+        }
+        else if (NodepConfig.auto == 0) {
+            TweenTs.removeTweens(this);
+            TweenTs.get(this).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
+        }
+        return true;
+    };
+    /**
+     * 获取某个一级输入框(TextInput)
+     * @param  {string} str partID
+     */
+    GameWindow.prototype.getTxtInput = function (str) {
+        return this.getChildByName(str);
+    };
+    //自动布局
+    GameWindow.prototype.autoScale = function () {
+        this.scaleX = WinsManager.getIns().$autoScaleX;
+        this.scaleY = WinsManager.getIns().$autoScaleY;
+        var trueH = this._initH * this.scaleY;
+        this.height = this._initH - (trueH - this._initH) / WinsManager.getIns().$autoScaleY;
+    };
+    GameWindow.prototype.justScale = function () {
+        this.scaleX = WinsManager.getIns().$autoScaleX;
+        this.scaleY = WinsManager.getIns().$autoScaleY;
+    };
+    GameWindow.prototype.sound = function (sn, dt) {
+        if (dt === void 0) { dt = 1000; }
+        SoundManager.getIns().playSound(sn, 1, dt);
+    };
+    GameWindow._backShape = new egret.Shape();
+    return GameWindow;
+}(eui.Component));
+__reflect(GameWindow.prototype, "GameWindow", ["eui.UIComponent", "egret.DisplayObject"]);
 /**
  * 可视化组建基类
  * @author nodep
@@ -294,7 +705,7 @@ var HViewStack = (function () {
      */
     HViewStack.prototype.initPageTo = function (index, data) {
         var comp = HViewStack.getPage(this._keys[index]);
-        egret.Tween.removeTweens(comp);
+        TweenTs.removeTweens(comp);
         comp.data = data;
         if (this._focus) {
             this._box.removeChild(this._focus);
@@ -322,9 +733,9 @@ var HViewStack = (function () {
         var toX = 0;
         var idx = this._focusIndex;
         if (index > this._focusIndex) {
-            egret.Tween.removeTweens(comp);
+            TweenTs.removeTweens(comp);
             comp.x = this._box.width;
-            egret.Tween.get(comp).to({ x: 0 }, 400);
+            TweenTs.get(comp).to({ x: 0 }, 400);
             comp.data = data;
             this._box.addChild(comp);
             toX = -this._box.width;
@@ -332,9 +743,9 @@ var HViewStack = (function () {
             this._focusIndex = index;
         }
         else if (index < this._focusIndex) {
-            egret.Tween.removeTweens(comp);
+            TweenTs.removeTweens(comp);
             comp.x = -this._box.width;
-            egret.Tween.get(comp).to({ x: 0 }, 400);
+            TweenTs.get(comp).to({ x: 0 }, 400);
             comp.data = data;
             this._box.addChild(comp);
             toX = this._box.width;
@@ -345,8 +756,8 @@ var HViewStack = (function () {
             this.initPageTo(index, data);
         }
         if (toX != 0 && this._focus != tar) {
-            egret.Tween.removeTweens(tar);
-            egret.Tween.get(tar).to({ x: toX }, 300);
+            TweenTs.removeTweens(tar);
+            TweenTs.get(tar).to({ x: toX }, 300);
             DelayCall.call(300, this.removeHandler, this, [tar], 1, "hviewDelayRemove_" + tar.hashCode);
         }
     };
@@ -426,10 +837,10 @@ var TabBox = (function (_super) {
             fl = this._loaders[1];
             hide = this._loaders[0];
         }
-        egret.Tween.removeTweens(hide);
-        egret.Tween.get(hide).to({ alpha: 0 }, 300);
-        egret.Tween.removeTweens(fl);
-        egret.Tween.get(fl).to({ alpha: 1 }, 300);
+        TweenTs.removeTweens(hide);
+        TweenTs.get(hide).to({ alpha: 0 }, 300);
+        TweenTs.removeTweens(fl);
+        TweenTs.get(fl).to({ alpha: 1 }, 300);
         fl.url = this._imgs[this._index];
         var nextIndex = this._index + 1;
         if (nextIndex >= this._imgs.length)
@@ -510,8 +921,8 @@ var NoticeBar = (function () {
         if (needT < this._durT) {
             needT = this._durT;
         }
-        egret.Tween.removeTweens(this._label);
-        egret.Tween.get(this._label).to({ x: this._left / 2 - this._label.textWidth }, needT);
+        TweenTs.removeTweens(this._label);
+        TweenTs.get(this._label).to({ x: this._left / 2 - this._label.textWidth }, needT);
         DelayCall.call(needT + 1000, this.nextOne, this, null, 1, "frameNodep_noticeBar" + this._hash);
     };
     NoticeBar.prototype.nextOne = function () {
@@ -533,7 +944,7 @@ var NoticeBar = (function () {
             this._g.addEventListener(egret.TouchEvent.TOUCH_TAP, this.tapHandler, this);
     };
     NoticeBar.prototype.stop = function () {
-        egret.Tween.removeTweens(this._label);
+        TweenTs.removeTweens(this._label);
         DelayCall.removeCall("frameworknoticeBar" + this._g.hashCode);
         DelayCall.removeCall("frameNodep_noticeBar" + this._hash);
         this._g.addEventListener(egret.TouchEvent.TOUCH_TAP, this.tapHandler, this);
@@ -1271,7 +1682,7 @@ var SoundManager = (function () {
             return;
         this._nowBg = mp3;
         if (this._bgC) {
-            egret.Tween.removeTweens(this._bgC);
+            TweenTs.removeTweens(this._bgC);
             try {
                 this._bgC.stop();
             }
@@ -1285,7 +1696,7 @@ var SoundManager = (function () {
         if (this._bgC == null)
             return;
         this._bgC.volume = 0;
-        egret.Tween.get(this._bgC).to({ volume: NodepConfig.bgVolume }, 3000);
+        TweenTs.get(this._bgC).to({ volume: NodepConfig.bgVolume }, 3000);
     };
     /**
      * 循环播放音效
@@ -1625,347 +2036,59 @@ var WinsManager = (function () {
     return WinsManager;
 }());
 __reflect(WinsManager.prototype, "WinsManager");
+var nodep;
+(function (nodep) {
+    var TweenItem = (function () {
+        function TweenItem(t) {
+            this.type = t;
+        }
+        TweenItem.prototype.dispose = function () {
+            this.props = null;
+            this.ease = null;
+        };
+        return TweenItem;
+    }());
+    nodep.TweenItem = TweenItem;
+    __reflect(TweenItem.prototype, "nodep.TweenItem");
+})(nodep || (nodep = {}));
 /**
- * 对象池
+ * 事件调度
  * @author nodep
  * @version 1.0
  */
-var ObjPool = (function () {
-    function ObjPool() {
+var EventDispatcher = (function () {
+    function EventDispatcher() {
     }
-    /**
-     * 通过class获取一个实例
-     * @param  {any} cls
-     * @returns any
-     */
-    ObjPool.create = function (cls) {
-        var key = egret.getQualifiedClassName(cls);
-        if (!this._poolMap.has(key))
-            this._poolMap.set(key, []);
-        var cs = this._poolMap.get(key);
-        if (cs.length == 0)
-            cs.push(new cls());
-        return cs.pop();
+    EventDispatcher.regist = function (type, handler, thisObj) {
+        if (!this._lis.has(type))
+            this._lis.set(type, []);
+        var lis = this._lis.get(type);
+        lis.push([handler, thisObj]);
     };
-    /**
-     * 释放一个
-     * @param  {any} c
-     * @returns void
-     */
-    ObjPool.release = function (c) {
-        var key = egret.getQualifiedClassName(c);
-        var cs = this._poolMap.get(key);
-        if (cs)
-            cs.push(c);
-    };
-    ObjPool._poolMap = new Map();
-    return ObjPool;
-}());
-__reflect(ObjPool.prototype, "ObjPool");
-/**
- * 游戏通用的界面,继承之后可以通过GameWindow进行管理
- * 界面的缩放不影响布局效果
- * @author nodep
- * @version 1.01
- */
-var GameWindow = (function (_super) {
-    __extends(GameWindow, _super);
-    /**
-     * 构造函数
-     * @param  {string} typeName 界面名称
-     * @param  {string} layerType 默认所在层
-     * 当一个界面构造完成后,一般需要下面几个步骤
-     * 1、删除partAdd
-     * 2、添加初始化代码
-     * 3、添加总刷新函数,并在create和reopen中调用
-     * 下面是一些关键函数
-     * @see addEventTap
-     * @see tapCallback
-     * @see update
-     * @see active
-     * @see beforeClose
-     * @see reOpen
-     */
-    function GameWindow(typeName, layerType, backgrundColor) {
-        if (backgrundColor === void 0) { backgrundColor = -1; }
-        var _this = _super.call(this) || this;
-        //非初次加入舞台
-        _this.__inited = false;
-        _this.__align = "NONE";
-        _this.__offsetX = 0;
-        _this.__offsetY = 0;
-        /***所屬層級,需要在業務中自定義*/
-        _this.layerType = "";
-        /**是否有遮罩,如果手动设置为有遮罩的,将会在弹出后阻挡后面的界面操作*/
-        _this.pop = false;
-        /**界面是否已经创建完成,只有在创建完成的界面中才不会抛空*/
-        _this.created = false;
-        _this._backgrundColor = -1;
-        _this.needDelayRemove = 0;
-        _this._backgrundColor = backgrundColor;
-        _this.typeName = typeName;
-        _this.layerType = layerType;
-        _this.skinName = egret.getQualifiedClassName(_this) + "Skin";
-        return _this;
-    }
-    GameWindow.prototype.partAdded = function (partName, instance) {
-        instance.name = partName;
-        if (partName.indexOf("helpTip_") >= 0) {
-            NodepManager.getIns().addHelpTipHandler(instance);
-        }
-        _super.prototype.partAdded.call(this, partName, instance);
-    };
-    GameWindow.prototype.childrenCreated = function () {
-        _super.prototype.childrenCreated.call(this);
-        if (this._backgrundColor >= 0) {
-            var rt = new egret.RenderTexture();
-            GameWindow._backShape.graphics.clear();
-            GameWindow._backShape.graphics.beginFill(this._backgrundColor);
-            GameWindow._backShape.graphics.drawRect(0, 0, 1, 1);
-            GameWindow._backShape.graphics.endFill();
-            rt.drawToTexture(GameWindow._backShape);
-            this._backBt = new egret.Bitmap(rt);
-            this.addChildAt(this._backBt, 0);
-        }
-        this.visible = true;
-        this.created = true;
-        this._initW = this.width;
-        this._initH = this.height;
-        if (NodepConfig.auto == 1)
-            this.autoScale();
-        this.resize();
-        this.updateSelf();
-    };
-    GameWindow.prototype.updateSelf = function () {
-    };
-    /**
-     *再次加入舞臺
-     */
-    GameWindow.prototype.reOpen = function () {
-        this.visible = true;
-        if (NodepConfig.auto == 1)
-            this.autoScale();
-        if (this._backBt) {
-            this.addChildAt(this._backBt, 0);
-        }
-        this.resize();
-        if (this.created)
-            this.updateSelf();
-    };
-    GameWindow.prototype.addStageClose = function () {
-        this.stage.addEventListener(egret.TouchEvent.TOUCH_TAP, this.autoCloseHandler, this);
-    };
-    GameWindow.prototype.autoCloseHandler = function (evt) {
-        if (evt.target instanceof egret.Shape)
-            WinsManager.getIns().closeWin(this);
-    };
-    /**
-     * 捕获消息
-     * @param  {number} updateType 消息编号
-     * @param  {any} updateObject 消息体
-     * @returns void
-     */
-    GameWindow.prototype.update = function (updateType, updateObject) {
-    };
-    /**
-     * 关闭界面之前
-     * 如果要添加关闭动画则在实现中返回false,并实现自己的关闭动画。则关闭动画完成后彻底移除。
-     */
-    GameWindow.prototype.beforeClose = function () {
-        if (this.stage && this.stage.hasEventListener(egret.TouchEvent.TOUCH_TAP))
-            this.stage.removeEventListener(egret.TouchEvent.TOUCH_TAP, this.autoCloseHandler, this);
-        if (this._backBt && this._backBt.parent) {
-            this._backBt.parent.removeChild(this._backBt);
-            this.needDelayRemove = 1;
-        }
-        return true;
-    };
-    /**
-     * 舞台大小发生变化
-     */
-    GameWindow.prototype.resize = function () {
-        switch (this.__align) {
-            case AlignType.CENTER_STAGE:
-                if (NodepConfig.auto == 1 && this.parent != null) {
-                    this.parent.x = Math.floor(WinsManager.stageWidth / 2);
-                    this.parent.y = Math.floor(WinsManager.stageHeight / 2);
-                }
-                else {
-                    this.x = Math.floor(WinsManager.stageWidth / 2);
-                    this.y = Math.floor(WinsManager.stageHeight / 2);
-                }
+    EventDispatcher.unregist = function (type, handler, thisObj) {
+        var lis = this._lis.get(type);
+        if (!lis)
+            return;
+        for (var i = 0; i < lis.length; i++) {
+            if (lis[i][0] == handler && lis[i][1] == thisObj) {
+                lis.splice(i, 1);
                 break;
-            case AlignType.TOP_LEFT:
-                this.x = this.__offsetX;
-                this.y = this.__offsetY;
-                break;
-            case AlignType.TOP_CENTER:
-                this.x = (WinsManager.stageWidth - this.width * this.scaleX) / 2 + this.__offsetX;
-                this.y = this.__offsetY;
-                break;
-            case AlignType.TOP_RIGHT:
-                this.x = WinsManager.stageWidth - this.width * this.scaleX + this.__offsetX;
-                this.y = this.__offsetY;
-                break;
-            case AlignType.CENTER:
-                this.x = (WinsManager.stageWidth - this.width * this.scaleX) / 2 + this.__offsetX;
-                this.y = (WinsManager.stageHeight - this.height * this.scaleY) / 2 + this.__offsetY;
-                break;
-            case AlignType.BOTTOM_LEFT:
-                this.x = this.__offsetX;
-                this.y = WinsManager.stageHeight - this.height * this.scaleY + this.__offsetY;
-                break;
-            case AlignType.BOTTOM_CENTER:
-                this.x = this.x = (WinsManager.stageWidth - this.width * this.scaleX) / 2 + this.__offsetX;
-                this.y = WinsManager.stageHeight - this.height * this.scaleY + this.__offsetY;
-                break;
-            case AlignType.BOTTOM_RIGHT:
-                this.x = WinsManager.stageWidth - this.width * this.scaleX + this.__offsetX;
-                this.y = WinsManager.stageHeight - this.height * this.scaleY + this.__offsetY;
-                break;
-        }
-        if (this._backBt != null) {
-            this._backBt.scaleX = this.width;
-            this._backBt.scaleY = this.height;
-        }
-    };
-    /**
-     * 界面被激活
-     * @returns void
-     */
-    GameWindow.prototype.active = function () {
-    };
-    /**
-     * 设置布局
-     * @param  {string} alignType 布局方式
-     * @param  {number=0} offsetX x偏移量
-     * @param  {number=0} offsetY y偏移量
-     * @see AlignType
-     */
-    GameWindow.prototype.align = function (alignType, offsetX, offsetY) {
-        if (offsetX === void 0) { offsetX = 0; }
-        if (offsetY === void 0) { offsetY = 0; }
-        this.__align = alignType;
-        this.__offsetX = offsetX * this.scaleX;
-        this.__offsetY = offsetY * this.scaleY;
-        if (this.stage != null)
-            this.resize();
-    };
-    /**
-     * 为界面元素添加点击事件
-     * @param  {any} args 需要添加事件的partID,或容器(如果是容器会为容器中的所有子对象添加事件)
-     * @param  {string=""} paName args的父容器节点,只对2级容器有效。如果界面存在三级容器，请重新设计。或创建界面组件控制器
-     * @see tapCallback
-     */
-    GameWindow.prototype.addEventTap = function (args, paName) {
-        if (paName === void 0) { paName = ""; }
-        if (args instanceof egret.DisplayObject) {
-            args.addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
-        }
-        else {
-            switch (typeof args) {
-                case "string":
-                    if (paName == "")
-                        this.getChildByName(args).addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
-                    else
-                        this.getChildByName(paName).getChildByName(args).addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
-                    break;
-                case "object":
-                    var key;
-                    for (key in args) {
-                        this[args[key]].addEventListener(egret.TouchEvent.TOUCH_TAP, this.eventTapHandler, this);
-                    }
-                    break;
-                default:
-                    throw (new Error(NodepErrorType.PARAM_TYPE_ERROR));
             }
         }
     };
-    /**
-     * 响应函数
-     * @param  {string} childName
-     * @returns void
-     */
-    GameWindow.prototype.tapCallback = function (childName) {
-    };
-    GameWindow.prototype.eventTapHandler = function (evt) {
-        if (evt.currentTarget instanceof eui.Image) {
-            evt.currentTarget.scaleX = evt.currentTarget.scaleY = 0.9;
-            DelayCall.call(20, function handle(target) {
-                target.scaleX = target.scaleY = 1;
-            }, this, [evt.currentTarget]);
-        }
-        this.tapCallback(evt.currentTarget.name);
-    };
-    /**
-     * 弹出界面
-     * @param  {number=200} durT 经过的时间
-     * @param  {number=0} fromScale 从多小或多大
-     * @param {boolean=true} useBackOut 是否应用此效果
-     */
-    GameWindow.prototype.popup = function (durT, fromScale, useBackOut) {
-        if (durT === void 0) { durT = 200; }
-        if (fromScale === void 0) { fromScale = 0; }
-        if (useBackOut === void 0) { useBackOut = true; }
-        if (NodepConfig.auto == 1 && this.parent != null) {
-            this.parent.alpha = 0;
-            this.parent.scaleX = fromScale;
-            this.parent.scaleY = fromScale;
-            egret.Tween.removeTweens(this.parent);
-            egret.Tween.get(this.parent).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? egret.Ease.backOut : null);
-        }
-        else if (NodepConfig.auto == 0) {
-            this.alpha = 0;
-            this.scaleX = fromScale;
-            this.scaleY = fromScale;
-            egret.Tween.removeTweens(this);
-            egret.Tween.get(this).to({ alpha: 1, scaleX: 1, scaleY: 1 }, durT, useBackOut ? egret.Ease.backOut : null);
+    EventDispatcher.dispatch = function (type, args) {
+        if (args === void 0) { args = null; }
+        var lis = this._lis.get(type);
+        if (!lis)
+            return;
+        for (var i = 0; i < lis.length; i++) {
+            lis[i][0].apply(lis[i][1], args);
         }
     };
-    GameWindow.prototype.popOut = function (durT, toScale) {
-        if (durT === void 0) { durT = 200; }
-        if (toScale === void 0) { toScale = 0; }
-        if (this._backBt && this._backBt.parent) {
-            this._backBt.parent.removeChild(this._backBt);
-            this.needDelayRemove = 1;
-        }
-        this.needDelayRemove = durT;
-        if (NodepConfig.auto == 1 && this.parent != null) {
-            egret.Tween.removeTweens(this.parent);
-            egret.Tween.get(this.parent).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
-        }
-        else if (NodepConfig.auto == 0) {
-            egret.Tween.removeTweens(this);
-            egret.Tween.get(this).to({ alpha: 0, scaleX: toScale, scaleY: toScale }, durT);
-        }
-        return true;
-    };
-    /**
-     * 获取某个一级输入框(TextInput)
-     * @param  {string} str partID
-     */
-    GameWindow.prototype.getTxtInput = function (str) {
-        return this.getChildByName(str);
-    };
-    //自动布局
-    GameWindow.prototype.autoScale = function () {
-        this.scaleX = WinsManager.getIns().$autoScaleX;
-        this.scaleY = WinsManager.getIns().$autoScaleY;
-        var trueH = this._initH * this.scaleY;
-        this.height = this._initH - (trueH - this._initH) / WinsManager.getIns().$autoScaleY;
-    };
-    GameWindow.prototype.justScale = function () {
-        this.scaleX = WinsManager.getIns().$autoScaleX;
-        this.scaleY = WinsManager.getIns().$autoScaleY;
-    };
-    GameWindow.prototype.sound = function (sn, dt) {
-        if (dt === void 0) { dt = 1000; }
-        SoundManager.getIns().playSound(sn, 1, dt);
-    };
-    GameWindow._backShape = new egret.Shape();
-    return GameWindow;
-}(eui.Component));
-__reflect(GameWindow.prototype, "GameWindow", ["eui.UIComponent", "egret.DisplayObject"]);
+    EventDispatcher._lis = new Map();
+    return EventDispatcher;
+}());
+__reflect(EventDispatcher.prototype, "EventDispatcher");
 /**
  * 临时加载的资源中心
  * @version 1.0
@@ -2875,21 +2998,21 @@ var MenuGroup = (function () {
     };
     MenuGroup.prototype.show = function (ease) {
         if (ease === void 0) { ease = true; }
-        egret.Tween.removeTweens(this._bar);
-        egret.Tween.get(this._bar).to({ rotation: 0 }, 100);
+        TweenTs.removeTweens(this._bar);
+        TweenTs.get(this._bar).to({ rotation: 0 }, 100);
         this._showed = true;
         this.removeT();
         for (var i = 0; i < this._targets.length; i++) {
-            egret.Tween.get(this._targets[i]).to({ alpha: 1, x: this._targetsPos.get(this._targets[i]).x + this._px, y: this._targetsPos.get(this._targets[i]).y + this._py }, 100, ease ? egret.Ease.backOut : null);
+            TweenTs.get(this._targets[i]).to({ alpha: 1, x: this._targetsPos.get(this._targets[i]).x + this._px, y: this._targetsPos.get(this._targets[i]).y + this._py }, 100, ease ? nodep.Ease.backOut : null);
         }
     };
     MenuGroup.prototype.hide = function () {
-        egret.Tween.removeTweens(this._bar);
-        egret.Tween.get(this._bar).to({ rotation: 45 }, 100);
+        TweenTs.removeTweens(this._bar);
+        TweenTs.get(this._bar).to({ rotation: 45 }, 100);
         this._showed = false;
         this.removeT();
         for (var i = 0; i < this._targets.length; i++) {
-            egret.Tween.get(this._targets[i]).to({ alpha: 0, x: this._bar.x, y: this._bar.y }, 100);
+            TweenTs.get(this._targets[i]).to({ alpha: 0, x: this._bar.x, y: this._bar.y }, 100);
         }
     };
     //偏移量
@@ -2899,7 +3022,7 @@ var MenuGroup = (function () {
     };
     MenuGroup.prototype.removeT = function () {
         for (var i = 0; i < this._targets.length; i++) {
-            egret.Tween.removeTweens(this._targets[i]);
+            TweenTs.removeTweens(this._targets[i]);
         }
     };
     return MenuGroup;
@@ -2964,11 +3087,11 @@ var ListBox = (function () {
         if (delayc === void 0) { delayc = true; }
         if (move === void 0) { move = false; }
         var toy = 0;
-        egret.Tween.removeTweens(this._box);
+        TweenTs.removeTweens(this._box);
         if (!move)
             this._box.scrollV = toy;
         else {
-            egret.Tween.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
+            TweenTs.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
         }
         if (delayc)
             DelayCall.call(50, this.toTop, this, [false]);
@@ -2985,11 +3108,11 @@ var ListBox = (function () {
         if (toy < 0)
             toy = 0;
         if (toy >= 0 && toy < this._box.getBounds().height) {
-            egret.Tween.removeTweens(this._box);
+            TweenTs.removeTweens(this._box);
             if (!move)
                 this._box.scrollV = toy;
             else {
-                egret.Tween.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
+                TweenTs.get(this._box).to({ scrollV: toy }, this.toBottomSpeed);
             }
         }
         if (delayc)
@@ -3075,8 +3198,8 @@ var ListBox = (function () {
         pIndex = this._datas.indexOf(render.getData());
         if (pIndex >= 0)
             this._datas.splice(pIndex, 1);
-        egret.Tween.removeTweens(target);
-        egret.Tween.get(target).to({ alpha: 0, x: -target.width }, 100);
+        TweenTs.removeTweens(target);
+        TweenTs.get(target).to({ alpha: 0, x: -target.width }, 100);
         DelayCall.call(120, this.removeOne, this, [target]);
         this.updatePoses(true);
     };
@@ -3129,9 +3252,9 @@ var ListBox = (function () {
             render = this._items[i];
             render.alpha = 1;
             render.x = 0;
-            egret.Tween.removeTweens(render);
+            TweenTs.removeTweens(render);
             if (byMc)
-                egret.Tween.get(render).to({ y: fy }, 100);
+                TweenTs.get(render).to({ y: fy }, 100);
             else
                 render.y = fy;
             if (this._everyH > 0) {
@@ -3229,16 +3352,16 @@ var GameLayer = (function (_super) {
             this._popShape.graphics.endFill;
             this._popShape.touchEnabled = true;
             this.addChildAt(this._popShape, 0);
-            egret.Tween.removeTweens(this._popShape);
-            egret.Tween.get(this._popShape).to({ alpha: 1 }, 200);
+            TweenTs.removeTweens(this._popShape);
+            TweenTs.get(this._popShape).to({ alpha: 1 }, 200);
         } //删除
         else if (this._popCount <= 0 && (this._popShape && this._popShape.touchEnabled)) {
             // this.removeChild(this._popShape);
             // this._popShape.graphics.clear();
             // this._popShape = null;
             this._popShape.touchEnabled = false;
-            egret.Tween.removeTweens(this._popShape);
-            egret.Tween.get(this._popShape).to({ alpha: 0 }, 200);
+            TweenTs.removeTweens(this._popShape);
+            TweenTs.get(this._popShape).to({ alpha: 0 }, 200);
         }
     };
     /**
@@ -3972,40 +4095,99 @@ var PackOut = (function () {
 }());
 __reflect(PackOut.prototype, "PackOut");
 /**
- * 事件调度
- * @author nodep
+ * UTF8
  * @version 1.0
+ * @author nodep
  */
-var EventDispatcher = (function () {
-    function EventDispatcher() {
+var UTF8 = (function () {
+    function UTF8() {
     }
-    EventDispatcher.regist = function (type, handler, thisObj) {
-        if (!this._lis.has(type))
-            this._lis.set(type, []);
-        var lis = this._lis.get(type);
-        lis.push([handler, thisObj]);
-    };
-    EventDispatcher.unregist = function (type, handler, thisObj) {
-        var lis = this._lis.get(type);
-        if (!lis)
-            return;
-        for (var i = 0; i < lis.length; i++) {
-            if (lis[i][0] == handler && lis[i][1] == thisObj) {
-                lis.splice(i, 1);
-                break;
+    /**
+     * Unicode符号范围 | UTF-8编码方式
+     * (十六进制) | （二进制）
+     * --------------------+---------------------------------------------
+     * 0000 0000-0000 007F | 0xxxxxxx
+     * 0000 0080-0000 07FF | 110xxxxx 10xxxxxx
+     * 0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
+     * 0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+     */
+    /**
+     *
+     * @param {String} str
+     * @returns {Uint8Array}
+     */
+    UTF8.stringToByteArray = function (str) {
+        // 110xxxxx = 0xC0      2byte
+        // 00011111 = 0x1F
+        // 1110xxxx = 0xE0      3byte
+        // 11110xxx = 0xF0      4byte
+        // 10xxxxxx = 0x80
+        // 00111111 = 0x3F
+        var array = [];
+        for (var i = 0; i < str.length; ++i) {
+            var code = str.charCodeAt(i);
+            if (code < 0x007F) {
+                array.push(code);
+            }
+            else if (code < 0x07FF) {
+                array.push(code >> 6 & 0x1F | 0xC0);
+                array.push((code & 0x3F) | 0x80);
+            }
+            else if (code < 0xFFFF) {
+                array.push(code >> 12 & 0xF | 0xE0);
+                array.push(code >> 6 & 0x3F | 0x80);
+                array.push(code & 0x3F | 0x80);
+            }
+            else {
+                array.push(code >> 18 & 0xF8 | 0xF0);
+                array.push(code >> 12 & 0x3F | 0x80);
+                array.push(code >> 6 & 0x3F | 0x80);
+                array.push(code & 0x3F | 0x80);
             }
         }
+        return new Uint8Array(array);
     };
-    EventDispatcher.dispatch = function (type, args) {
-        if (args === void 0) { args = null; }
-        var lis = this._lis.get(type);
-        if (!lis)
-            return;
-        for (var i = 0; i < lis.length; i++) {
-            lis[i][0].apply(lis[i][1], args);
+    /**
+     *
+     * @param array {Uint8Array}
+     * @returns {String}
+     */
+    UTF8.byteArrayToString = function (array) {
+        var str = '';
+        var count = array.length;
+        var idx = 0;
+        var code = 0;
+        while (idx < count) {
+            var byte1 = array[idx];
+            if ((byte1 & 0x80) === 0) {
+                code = byte1;
+                idx += 1;
+            }
+            else if ((byte1 >> 5 << 5) === 0xC0) {
+                var byte2 = array[idx + 1];
+                code = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
+                idx += 2;
+            }
+            else if ((byte1 >> 4 << 4) === 0xE0) {
+                var byte2 = array[idx + 1];
+                var byte3 = array[idx + 2];
+                code = (0xF & byte1) << 12 | (byte2 & 0x3F) << 6 | (byte3 & 0x3F);
+                idx += 3;
+            }
+            else if ((byte1 >> 3 << 3) === 0xF0) {
+                var byte2 = array[idx + 1];
+                var byte3 = array[idx + 2];
+                var byte4 = array[idx + 3];
+                code = (0xF & byte1 << 18) | (byte2 << 12 & 0x3F) | (byte3 << 6 & 0x3F) | (byte4 & 0x3F);
+                idx += 4;
+            }
+            else {
+                throw new Error('can not decode utf8 string');
+            }
+            str += String.fromCharCode(code);
         }
+        return str;
     };
-    EventDispatcher._lis = new Map();
-    return EventDispatcher;
+    return UTF8;
 }());
-__reflect(EventDispatcher.prototype, "EventDispatcher");
+__reflect(UTF8.prototype, "UTF8");

@@ -46,22 +46,22 @@ class MenuGroup {
 	}
 
 	public show(ease: boolean = true): void {
-		egret.Tween.removeTweens(this._bar);
-		egret.Tween.get(this._bar).to({ rotation: 0 }, 100);
+		TweenTs.removeTweens(this._bar);
+		TweenTs.get(this._bar).to({ rotation: 0 }, 100);
 		this._showed = true;
 		this.removeT();
 		for (var i: number = 0; i < this._targets.length; i++) {
-			egret.Tween.get(this._targets[i]).to({ alpha: 1, x: this._targetsPos.get(this._targets[i]).x + this._px, y: this._targetsPos.get(this._targets[i]).y + this._py }, 100, ease ? egret.Ease.backOut : null);
+			TweenTs.get(this._targets[i]).to({ alpha: 1, x: this._targetsPos.get(this._targets[i]).x + this._px, y: this._targetsPos.get(this._targets[i]).y + this._py }, 100, ease ? nodep.Ease.backOut : null);
 		}
 	}
 
 	public hide(): void {
-		egret.Tween.removeTweens(this._bar);
-		egret.Tween.get(this._bar).to({ rotation: 45 }, 100);
+		TweenTs.removeTweens(this._bar);
+		TweenTs.get(this._bar).to({ rotation: 45 }, 100);
 		this._showed = false;
 		this.removeT();
 		for (var i: number = 0; i < this._targets.length; i++) {
-			egret.Tween.get(this._targets[i]).to({ alpha: 0, x: this._bar.x, y: this._bar.y }, 100);
+			TweenTs.get(this._targets[i]).to({ alpha: 0, x: this._bar.x, y: this._bar.y }, 100);
 		}
 	}
 
@@ -73,7 +73,7 @@ class MenuGroup {
 
 	private removeT(): void {
 		for (var i: number = 0; i < this._targets.length; i++) {
-			egret.Tween.removeTweens(this._targets[i]);
+			TweenTs.removeTweens(this._targets[i]);
 		}
 	}
 }

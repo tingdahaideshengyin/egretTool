@@ -77,16 +77,16 @@ class GameLayer extends egret.DisplayObjectContainer implements GameLayerInterfa
             this._popShape.graphics.endFill;
             this._popShape.touchEnabled = true;
             this.addChildAt(this._popShape, 0);
-            egret.Tween.removeTweens(this._popShape);
-            egret.Tween.get(this._popShape).to({ alpha: 1 }, 200);
+            TweenTs.removeTweens(this._popShape);
+            TweenTs.get(this._popShape).to({ alpha: 1 }, 200);
         }//删除
         else if (this._popCount <= 0 && (this._popShape && this._popShape.touchEnabled)) {
             // this.removeChild(this._popShape);
             // this._popShape.graphics.clear();
             // this._popShape = null;
             this._popShape.touchEnabled = false;
-            egret.Tween.removeTweens(this._popShape);
-            egret.Tween.get(this._popShape).to({ alpha: 0 }, 200);
+            TweenTs.removeTweens(this._popShape);
+            TweenTs.get(this._popShape).to({ alpha: 0 }, 200);
         }
     }
 
