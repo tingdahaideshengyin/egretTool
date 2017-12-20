@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
-				xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="1000" height="600" showCloseButton="true" fontSize="12" close="titlewindow1_closeHandler(event)" creationComplete="titlewindow1_creationCompleteHandler(event)">
+<mx:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				width="1000" height="600" close="titlewindow1_closeHandler(event)" title="PNG序列动画排列切割"
+				creationComplete="titlewindow1_creationCompleteHandler(event)" fontSize="12"
+				layout="absolute" showCloseButton="true">
 	<fx:Script>
 		<![CDATA[
+			import mx.controls.Alert;
+			import mx.controls.Button;
 			import mx.core.UIComponent;
 			import mx.events.CloseEvent;
 			import mx.events.FlexEvent;
@@ -14,6 +19,12 @@
 			private var _box:UIComponent;
 			private var _showIndex:int = 0;
 			private var _focus:Bitmap;
+			private var _rect:Rectangle = new Rectangle();
+			private var _draging:Boolean = false;
+			private var _startX:int;
+			private var _startY:int;
+			private var _fx:int;
+			private var _fy:int;
 			
 			protected function titlewindow1_closeHandler(event:CloseEvent):void
 			{
@@ -29,6 +40,88 @@
 				this._box.y = 200;
 				this.addChild(this._box);
 				this.addController();
+				this._box.addEventListener(MouseEvent.MOUSE_DOWN,mouseDownHandler);
+				this._box.addEventListener(MouseEvent.MOUSE_UP,mouseUpHandler);
+				this._box.addEventListener(MouseEvent.MOUSE_MOVE,mouseMoveHandler);
+				this.addButton("preOne",20,20,"操作上一张");
+				this.addButton("nextOne",120,20,"操作下一张");
+				this.addButton("export",20,50,"导出图片");
+			}
+			
+			private function mouseDownHandler(evt:MouseEvent):void{
+				this._draging = true;
+				this._startX = this._box.mouseX;
+				this._startY = this._box.mouseY;
+				_fx = this._focus.x;
+				_fy = this._focus.y;
+			}
+			
+			private function mouseUpHandler(evt:MouseEvent):void{
+				this._draging = false;
+			}
+			
+			private function mouseMoveHandler(evt:MouseEvent):void{
+				if(_draging){
+					var cutX:int = this._box.mouseX - this._startX;
+					var cutY:int = this._box.mouseY - this._startY;
+					_focus.x = _fx + cutX;
+					_focus.y = _fy + cutY;
+				}
+			}
+			
+			//添加按钮
+			private function addButton(bname:String,bx:int,by:int,label:String):void
+			{
+				var btn:Button = new Button();
+				btn.x = bx;
+				btn.y = by;
+				btn.name = bname;
+				btn.label = label;
+				this.addChild(btn);
+				btn.addEventListener(MouseEvent.CLICK,optClickHandler);
+			}
+			
+			//对应操作按钮
+			private function optClickHandler(evt:MouseEvent):void{
+				var bname:String = evt.target.name;
+				switch(bname){
+					case "preOne":
+						this.selectOneHandler(-1);
+						break;
+					case "nextOne":
+						this.selectOneHandler(1);
+						break;
+					case "export":
+						FileUtil.choosePath(exportAll,"选择导出路径","exportPng");
+						break;
+				}
+			}
+			
+			//选择导出路径
+			private function exportAll(file:File,optKey:String=null):void{
+				switch(optKey){
+					case "exportPng":
+						exportPngs(file);
+						break;
+				}
+			}
+			
+			//导出到设定的路径
+			private function exportPngs(file:File):void{
+				for each(var png:PngSorter in this.pngs){
+					png.exportTo(file,_rect);
+				}
+				Alert.show("导出完成");
+			}
+			
+			//改变当前锁定的图片
+			private function selectOneHandler(cut:int):void{
+				_showIndex += cut;
+				if(_showIndex>=pngs.length)
+					_showIndex = 0;
+				if(_showIndex<0)
+					_showIndex=pngs.length-1;
+				updateShow();
 			}
 			
 			//路径选择后
@@ -53,12 +146,46 @@
 				this.updateShow();
 			}
 			
+			//绘制最大范围的框
+			private function drawMaxRect():void{
+				var minx:int = 10000;
+				var miny:int = 10000;
+				var maxx:int = 0;
+				var maxy:int = 0;
+				for each(var png:PngSorter in this.pngs){
+					if(png.x<minx)
+						minx = png.x;
+					if(png.y<miny)
+						miny = png.y;
+					if(png.x+png.width>maxx)
+						maxx = png.x+png.width;
+					if(png.y+png.height>maxy)
+						maxy = png.y+png.height;
+				}
+				this._rect.x = minx;
+				this._rect.y = miny;
+				this._rect.width = maxx;
+				this._rect.height = maxy;
+				this._box.graphics.clear();
+				this._box.graphics.lineStyle(2,0xFF0000,1);
+				this._box.graphics.moveTo(_rect.x,_rect.y);
+				this._box.graphics.lineTo(_rect.width,_rect.y);
+				this._box.graphics.lineTo(_rect.width,_rect.height);
+				this._box.graphics.lineTo(_rect.x,_rect.height);
+				this._box.graphics.lineTo(_rect.x,_rect.y);
+			}
+			
 			private function updateShow():void{
 				for(var i:int=0;i<pngs.length;i++){
-					pngs[i].visible = i==_showIndex;
-					if(pngs[i].visible)
+					if(i==_showIndex){
+						(pngs[i] as PngSorter).parent.setChildIndex((pngs[i] as PngSorter),(pngs[i] as PngSorter).parent.numChildren-1);
+						(pngs[i] as PngSorter).alpha = 1;
 						_focus = pngs[i];
+					}else{
+						(pngs[i] as PngSorter).alpha = 0.2;
+					}
 				}
+				this.drawMaxRect();
 			}
 			
 			private function addController():void{
@@ -80,10 +207,7 @@
 						_focus.x++;
 						break;
 					case 16://用shift切换图片
-						_showIndex++;
-						if(_showIndex>=pngs.length)
-							_showIndex = 0;
-						updateShow();
+						selectOneHandler(1);
 						break;
 				}
 			}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" layout="absolute" width="1000" height="600" title="等距切割" close="titlewindow1_closeHandler(event)"
+				creationComplete="titlewindow1_creationCompleteHandler(event)" fontSize="12" showCloseButton="true">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Button;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import nodep.util.FileUtil;
+			
+			private var _box:UIComponent;
+			
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				_box = new UIComponent();
+				this.addChild(_box);
+				this.addButton("addImg",20,20,"添加源文件");
+			}
+			
+			//添加按钮
+			private function addButton(bname:String,bx:int,by:int,label:String):void
+			{
+				var btn:Button = new Button();
+				btn.x = bx;
+				btn.y = by;
+				btn.name = bname;
+				btn.label = label;
+				this.addChild(btn);
+				btn.addEventListener(MouseEvent.CLICK,optClickHandler);
+			}
+			
+			//对应操作按钮
+			private function optClickHandler(evt:MouseEvent):void{
+				var bname:String = evt.target.name;
+				switch(bname){
+					case "addImg":
+						FileUtil.chooseFile(addFile,"选择要操作的图片");
+						break;
+				}
+			}
+			
+			private function addFile(file:File):void{
+				var bytes:ByteArray = FileUtil.getBytes(file.nativePath);
+				var item:NumberSplitItem = new NumberSplitItem(bytes);
+				this._box.addChild(item);
+			}
+		]]>
+	</fx:Script>
+</mx:TitleWindow>

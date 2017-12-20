@@ -13,10 +13,17 @@
 			
 			import decomposer.PlistDecomposer;
 			
+			import egretExport.MinJsCompress;
+			import egretExport.NoAppJson;
+			
+			import egretForLiuzhong.ProtocalErrorCodeMaker;
+			
 			import egretVersion.EgretVersionWindow;
 			
 			import nodep.ui.WinsManager;
 			import nodep.util.FileUtil;
+			
+			import numberSplit.NumberSplitWindow;
 			
 			import pngSort.PngSortWindow;
 			
@@ -27,8 +34,12 @@
 			/*初始化界面*/
 			private function initUI():void{
 				this.addButton("plist",20,20,"分解Plist");
-				this.addButton("pngMaker",20,50,"png序列排布");
+				this.addButton("pngMaker",20,50,"png序列排布(图集文件夹)");
 				this.addButton("egretVersionControl",20,80,"egret版本控制器");
+				this.addButton("numberSplit",20,110,"切割数字(横向排列的0~9)");
+				this.addButton("ptcErrorCodeMaker",20,140,"刘忠专用ErrorCode创建器");
+				this.addButton("exportNoApp",20,170,"生成APP加载模式配置文件");
+				this.addButton("compressMinJs",20,200,"压缩发布文件.min.js");
 				WinsManager.init(this.stage);
 			}
 			
@@ -58,14 +69,44 @@
 						var egretVw:IFlexDisplayObject = PopUpManager.createPopUp(this,EgretVersionWindow,true);
 						PopUpManager.centerPopUp(egretVw);
 						break;
+					case "numberSplit":
+						var ns:IFlexDisplayObject = PopUpManager.createPopUp(this,NumberSplitWindow,true);
+						PopUpManager.centerPopUp(ns);
+						break;
+					case "ptcErrorCodeMaker":
+						FileUtil.chooseFile(fileSelected,"Protocol错误码描述粘贴版",bname);
+						break;
+					case "exportNoApp":
+						FileUtil.choosePath(pathSelected,"选择发布目录",bname);
+						break;
+					case "compressMinJs":
+						MinJsCompress.compressByUrl("/Users/amdin/Documents/html5Project/html5/ICE_P4/lottery/bin-release/web/171213150108/main.min.js");
+//						FileUtil.chooseFile(fileSelected,"选择需要压缩的min.js",bname);
+						break;
+						
+				}
+			}
+			
+			private function fileSelected(file:File,optKey:String=null):void{
+				switch(optKey){
+					case "ptcErrorCodeMaker":
+						ProtocalErrorCodeMaker.errorCodeMake(file);
+						break;
+					case "compressMinJs":
+						MinJsCompress.compress(file);
+						break;
 				}
 			}
 			
 			//路径选择后
 			private function pathSelected(file:File,optKey:String=null):void{
+				trace(file.nativePath);
 				switch(optKey){
 					case "plist":
 						PlistDecomposer.decode(file);
+						break;
+					case "exportNoApp":
+						NoAppJson.create(file);
 						break;
 				}
 			}

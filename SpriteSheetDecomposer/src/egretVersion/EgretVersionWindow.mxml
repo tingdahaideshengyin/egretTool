@@ -15,7 +15,6 @@
 			import mx.managers.PopUpManager;
 			
 			import nodep.util.FileUtil;
-			import nodep.util.TxtUtil;
 			
 			private var _box:UIComponent;
 			
@@ -55,10 +54,15 @@
 				var date:Date = new Date();
 				version = date.fullYear+""+(date.month+1)+""+date.date+""+date.hours+""+date.minutes;
 				trace("最新的版本号为"+version);
-				//1.修改index中的版本号
-				var str:String = FileUtil.getStr(_newProject.nativePath+"/index.html");
-				str = TxtUtil.replace(str,"window.version",version);
-				FileUtil.saveStr(_newProject.nativePath+"/index.html",str);
+				//1.修改Main中的版本号
+				var mainStr:String = FileUtil.getStr(_newProject.nativePath+"/main.min.js");
+				if(FileUtil.isDifferent(_newProject.nativePath+"/resource/default.res.json",_oldProject.nativePath+"/resource/default.res.json")){
+					mainStr = mainStr.replace(/{resVer}/g,version);
+				}
+				if(FileUtil.isDifferent(_newProject.nativePath+"/resource/default.thm.json",_oldProject.nativePath+"/resource/default.thm.json")){
+					mainStr = mainStr.replace(/{thmVer}/g,version);
+				}
+				FileUtil.saveStr(_newProject.nativePath+"/main.min.js",mainStr);
 				//2.加载资源列表配置文件
 				var resConfigUrl:String = _newProject.nativePath+"/"+"resource/default.res.json";
 				var configStr:String = FileUtil.getStr(resConfigUrl);
@@ -68,27 +72,50 @@
 					var newResUrl:String = _newProject.nativePath+"/resource/"+resObjc.url;
 					var oldResUrl:String = _oldProject.nativePath+"/resource/"+resObjc.url;
 					if(FileUtil.isDifferent(newResUrl,oldResUrl)){
-						resObjc.url = resObjc.url+"?v="+version;
-						trace(resObjc.url);
+						var oUrl:String = resObjc.url;
+						if(oUrl.indexOf("?v")>=0)
+							oUrl = oUrl.split("?v")[0];
+						resObjc.url = oUrl+"?v="+version;
+						trace("resUrl->"+resObjc.url);
 					}
 				}
 				configStr = JSON.stringify(configObj);
 				FileUtil.saveStr(resConfigUrl,configStr);
-//				//3.加载皮肤配置.exmls。代码不对下次再改
-//				var skinUrl:String = _newProject.nativePath+"/"+"resource/default.thm.json";
-//				var skinStr:String = FileUtil.getStr(skinUrl);
-//				var skinObj:Object = JSON.parse(skinStr);
-//				var skinList:Array = skinObj["exmls"];
-//				for each(var skinObjc:Object in skinList){
-//					var newResPath:String = _newProject.nativePath+"/"+skinObjc.path;
-//					var oldResPath:String = _oldProject.nativePath+"/"+skinObjc.path;
-//					if(FileUtil.isDifferent(newResPath,oldResPath)){
-//						skinObjc.path = skinObjc.path+"?v="+version;
-//						trace(skinObjc.path);
-//					}
-//				}
-//				skinStr = JSON.stringify(skinObj);
-//				FileUtil.saveStr(skinUrl,skinStr);
+				//3.修改mainifest配置文件版本
+				var mainifestUrl:String = _newProject.nativePath+"/manifest.json";
+				var mainJson:String = FileUtil.getStr(mainifestUrl);
+				var mainObj:Object = JSON.parse(mainJson);
+				var lib:Array = mainObj["initial"];
+				//检查mainifest中的lib库是否有变化
+				for(var i:int=0;i<lib.length;i++){
+					var libStr:String = lib[i];
+					var newlib:String = _newProject.nativePath+"/"+libStr;
+					var oldlib:String = _oldProject.nativePath+"/"+libStr;
+					if(FileUtil.isDifferent(newlib,oldlib)){
+						if(libStr.indexOf("?v")>=0)
+							libStr = libStr.split("?v")[0];
+						libStr = libStr+"?v="+version;
+						lib[i] = libStr;
+						trace("mainifest_lib->"+libStr);
+					}
+				}
+				//检查mainifest中的game
+				var games:Array = mainObj["game"];
+				for(i=0;i<games.length;i++){
+					var gms:String = games[i];
+					var newFile:String = _newProject.nativePath+"/"+gms;
+					var oldFile:String = _oldProject.nativePath+"/"+gms;
+					if(FileUtil.isDifferent(newFile,oldFile)){
+						if(gms.indexOf("?v")>=0)
+							gms = gms.split("?v")[0];
+						gms = gms+"?v="+version;
+						games[i] = gms;
+						trace("mainifest_game->"+gms);
+					}
+				}
+				mainJson = JSON.stringify(mainObj);
+				FileUtil.saveStr(mainifestUrl,mainJson);
+				trace("版本发布完成");
 			}
 		]]>
 	</fx:Script>
