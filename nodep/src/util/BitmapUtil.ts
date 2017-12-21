@@ -32,4 +32,25 @@ class BitmapUtil {
     public static getBitmapTexture(name: string): egret.Texture {
         return RES.getRes(name);
     }
+
+    /**
+     * 制作一个快照图片
+     */
+    public static createSnapshot(dis: egret.DisplayObject): egret.Bitmap {
+        var rt: egret.RenderTexture = new egret.RenderTexture();
+        rt.drawToTexture(dis)
+        var b: egret.Bitmap = new egret.Bitmap(rt);
+        return b;
+    }
+
+    /**
+     * 回收一个快照
+     * @param  {egret.Bitmap} bit
+     * @returns void
+     */
+    public static removeSnapshot(bit: egret.Bitmap): void {
+        bit.texture.dispose();
+        if (bit.bitmapData)
+            bit.bitmapData.$dispose();
+    }
 }

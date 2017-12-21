@@ -926,6 +926,16 @@ declare class BitmapUtil {
      * @param  {string} name RES中的名称
      */
     static getBitmapTexture(name: string): egret.Texture;
+    /**
+     * 制作一个快照图片
+     */
+    static createSnapshot(dis: egret.DisplayObject): egret.Bitmap;
+    /**
+     * 回收一个快照
+     * @param  {egret.Bitmap} bit
+     * @returns void
+     */
+    static removeSnapshot(bit: egret.Bitmap): void;
 }
 /**
  * 延迟调用函数

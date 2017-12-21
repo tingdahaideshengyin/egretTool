@@ -2173,6 +2173,25 @@ var BitmapUtil = (function () {
     BitmapUtil.getBitmapTexture = function (name) {
         return RES.getRes(name);
     };
+    /**
+     * 制作一个快照图片
+     */
+    BitmapUtil.createSnapshot = function (dis) {
+        var rt = new egret.RenderTexture();
+        rt.drawToTexture(dis);
+        var b = new egret.Bitmap(rt);
+        return b;
+    };
+    /**
+     * 回收一个快照
+     * @param  {egret.Bitmap} bit
+     * @returns void
+     */
+    BitmapUtil.removeSnapshot = function (bit) {
+        bit.texture.dispose();
+        if (bit.bitmapData)
+            bit.bitmapData.$dispose();
+    };
     return BitmapUtil;
 }());
 __reflect(BitmapUtil.prototype, "BitmapUtil");
