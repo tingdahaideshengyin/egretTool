@@ -1250,7 +1250,6 @@ declare class MenuGroup {
     show(ease?: boolean): void;
     hide(): void;
     offset(px: number, py: number): void;
-    private removeT();
 }
 /**
  * 列表
@@ -1262,6 +1261,7 @@ declare class ListBox {
     private _everyH;
     private _upH;
     private _downH;
+    private _mh;
     private _thisObj;
     private _datas;
     private _items;
@@ -1287,6 +1287,7 @@ declare class ListBox {
      * @returns void
      */
     initHandler(upHandler: Function, downHandler: Function, thisObj: any, autoB?: Function, autoT?: Function): void;
+    initMoveHandler(mh: Function): void;
     toTop(delayc?: boolean, move?: boolean): void;
     /**
      * 滚动到最底部

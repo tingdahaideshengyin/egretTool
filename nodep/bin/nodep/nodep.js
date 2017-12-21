@@ -133,7 +133,6 @@ var TweenTs = (function () {
         var tw = this._tweenMap.delete(t);
         RenderManager.getIns().unregistRender(tw);
         tw.dispose();
-        this._tweenMap.log();
     };
     /**
      * 为某个对象构造一个tween动画
@@ -189,7 +188,7 @@ var TweenTs = (function () {
         var key;
         for (key in this._curObj) {
             if (this._focusT.ease != null)
-                this._tw[key] = this._startObj[key] + this._focusT.ease.call(nodep.Ease, this._curT / this._focusT.durT);
+                this._tw[key] = this._startObj[key] + this._focusT.ease.call(nodep.Ease, this._curT / this._focusT.durT) * this._curObj[key];
             else
                 this._tw[key] = this._startObj[key] + Math.min(this._curT / this._focusT.durT, 1) * this._curObj[key];
         }
@@ -2998,19 +2997,15 @@ var MenuGroup = (function () {
     };
     MenuGroup.prototype.show = function (ease) {
         if (ease === void 0) { ease = true; }
-        TweenTs.removeTweens(this._bar);
         TweenTs.get(this._bar).to({ rotation: 0 }, 100);
         this._showed = true;
-        this.removeT();
         for (var i = 0; i < this._targets.length; i++) {
             TweenTs.get(this._targets[i]).to({ alpha: 1, x: this._targetsPos.get(this._targets[i]).x + this._px, y: this._targetsPos.get(this._targets[i]).y + this._py }, 100, ease ? nodep.Ease.backOut : null);
         }
     };
     MenuGroup.prototype.hide = function () {
-        TweenTs.removeTweens(this._bar);
         TweenTs.get(this._bar).to({ rotation: 45 }, 100);
         this._showed = false;
-        this.removeT();
         for (var i = 0; i < this._targets.length; i++) {
             TweenTs.get(this._targets[i]).to({ alpha: 0, x: this._bar.x, y: this._bar.y }, 100);
         }
@@ -3019,11 +3014,6 @@ var MenuGroup = (function () {
     MenuGroup.prototype.offset = function (px, py) {
         this._px = px;
         this._py = py;
-    };
-    MenuGroup.prototype.removeT = function () {
-        for (var i = 0; i < this._targets.length; i++) {
-            TweenTs.removeTweens(this._targets[i]);
-        }
     };
     return MenuGroup;
 }());
@@ -3083,6 +3073,9 @@ var ListBox = (function () {
         this._autoB = autoB;
         this._autoT = autoT;
     };
+    ListBox.prototype.initMoveHandler = function (mh) {
+        this._mh = mh;
+    };
     ListBox.prototype.toTop = function (delayc, move) {
         if (delayc === void 0) { delayc = true; }
         if (move === void 0) { move = false; }
@@ -3121,14 +3114,26 @@ var ListBox = (function () {
     //触碰移动
     ListBox.prototype.moveHandler = function (evt) {
         this._autoBottom = false;
-        if (this._box.scrollV < -50)
+        if (this._box.scrollV < -100) {
             this._needUp = true;
-        if (this._box.scrollV + this._box.scrollRect.height > this._box.getBounds().height + 50)
+        }
+        if (this._box.scrollV + this._box.scrollRect.height > this._box.getBounds().height + 100) {
             this._needDown = true;
+        }
+        if (this._mh != null && this._thisObj) {
+            var v = 0;
+            if (this._box.scrollV < 0) {
+                v = -Math.min(this._box.scrollV / -100, 1);
+            }
+            else if (this._box.scrollV + this._box.scrollRect.height > this._box.getBounds().height) {
+                v = Math.min((this._box.scrollV + this._box.scrollRect.height - this._box.getBounds().height) / 100, 1);
+            }
+            this._mh.apply(this._thisObj, [v]);
+        }
     };
     //触碰结束
     ListBox.prototype.outHandler = function (evt) {
-        if (this._box.scrollV >= (this._box.getBounds().height - this._box.height) - 50) {
+        if (this._box.scrollV >= (this._box.getBounds().height - this._box.height) - 100) {
             if (this._autoB != null) {
                 this._autoB.apply(this._thisObj, [true]);
             }
@@ -3267,8 +3272,8 @@ var ListBox = (function () {
         }
         if (this._bottomRect != null) {
             this._bottomRect.y = fy;
-            if (this._bottomRect.y < this._box.parent.height + 50 && this._over)
-                this._bottomRect.y = this._box.parent.height + 50;
+            if (this._bottomRect.y < this._box.parent.height + 100 && this._over)
+                this._bottomRect.y = this._box.parent.height + 100;
         }
         if (autoBottom)
             this.toBottom(true, mcBottom);

@@ -9,6 +9,7 @@ class ListBox {
 	private _everyH: number = 0;
 	private _upH: Function;
 	private _downH: Function;
+	private _mh: Function;
 	private _thisObj: any;
 	private _datas: any[] = [];
 	private _items: ItemRender[] = [];
@@ -57,6 +58,10 @@ class ListBox {
 		this._autoT = autoT;
 	}
 
+	public initMoveHandler(mh: Function): void {
+		this._mh = mh;
+	}
+
 	public toTop(delayc: boolean = true, move: boolean = false): void {
 		var toy: number = 0;
 		TweenTs.removeTweens(this._box);
@@ -96,15 +101,26 @@ class ListBox {
 	//触碰移动
 	private moveHandler(evt: eui.UIEvent): void {
 		this._autoBottom = false;
-		if (this._box.scrollV < -50)
+		if (this._box.scrollV < -100) {
 			this._needUp = true;
-		if (this._box.scrollV + this._box.scrollRect.height > this._box.getBounds().height + 50)
+		}
+		if (this._box.scrollV + this._box.scrollRect.height > this._box.getBounds().height + 100) {
 			this._needDown = true;
+		}
+		if (this._mh != null && this._thisObj) {
+			var v: number = 0;
+			if (this._box.scrollV < 0) {
+				v = -Math.min(this._box.scrollV / -100, 1);
+			} else if (this._box.scrollV + this._box.scrollRect.height > this._box.getBounds().height) {
+				v = Math.min((this._box.scrollV + this._box.scrollRect.height - this._box.getBounds().height) / 100, 1);
+			}
+			this._mh.apply(this._thisObj, [v]);
+		}
 	}
 
 	//触碰结束
 	private outHandler(evt: eui.UIEvent): void {
-		if (this._box.scrollV >= (this._box.getBounds().height - this._box.height) - 50) {
+		if (this._box.scrollV >= (this._box.getBounds().height - this._box.height) - 100) {
 			if (this._autoB != null) {
 				this._autoB.apply(this._thisObj, [true]);
 			}
@@ -242,8 +258,8 @@ class ListBox {
 		}
 		if (this._bottomRect != null) {
 			this._bottomRect.y = fy;
-			if (this._bottomRect.y < this._box.parent.height + 50 && this._over)
-				this._bottomRect.y = this._box.parent.height + 50;
+			if (this._bottomRect.y < this._box.parent.height + 100 && this._over)
+				this._bottomRect.y = this._box.parent.height + 100;
 		}
 		if (autoBottom)
 			this.toBottom(true, mcBottom);

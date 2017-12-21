@@ -46,20 +46,16 @@ class MenuGroup {
 	}
 
 	public show(ease: boolean = true): void {
-		TweenTs.removeTweens(this._bar);
 		TweenTs.get(this._bar).to({ rotation: 0 }, 100);
 		this._showed = true;
-		this.removeT();
 		for (var i: number = 0; i < this._targets.length; i++) {
 			TweenTs.get(this._targets[i]).to({ alpha: 1, x: this._targetsPos.get(this._targets[i]).x + this._px, y: this._targetsPos.get(this._targets[i]).y + this._py }, 100, ease ? nodep.Ease.backOut : null);
 		}
 	}
 
 	public hide(): void {
-		TweenTs.removeTweens(this._bar);
 		TweenTs.get(this._bar).to({ rotation: 45 }, 100);
 		this._showed = false;
-		this.removeT();
 		for (var i: number = 0; i < this._targets.length; i++) {
 			TweenTs.get(this._targets[i]).to({ alpha: 0, x: this._bar.x, y: this._bar.y }, 100);
 		}
@@ -69,11 +65,5 @@ class MenuGroup {
 	public offset(px: number, py: number): void {
 		this._px = px;
 		this._py = py;
-	}
-
-	private removeT(): void {
-		for (var i: number = 0; i < this._targets.length; i++) {
-			TweenTs.removeTweens(this._targets[i]);
-		}
 	}
 }

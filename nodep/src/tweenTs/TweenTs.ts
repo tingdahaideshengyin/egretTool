@@ -29,7 +29,6 @@ class TweenTs implements IRender {
 		var tw: TweenTs = this._tweenMap.delete(t);
 		RenderManager.getIns().unregistRender(tw);
 		tw.dispose();
-		this._tweenMap.log();
 	}
 
 	/**
@@ -95,7 +94,7 @@ class TweenTs implements IRender {
 		var key: any;
 		for (key in this._curObj) {
 			if (this._focusT.ease != null)
-				this._tw[key] = this._startObj[key] + this._focusT.ease.call(nodep.Ease, this._curT / this._focusT.durT);
+				this._tw[key] = this._startObj[key] + this._focusT.ease.call(nodep.Ease, this._curT / this._focusT.durT) * this._curObj[key];
 			else
 				this._tw[key] = this._startObj[key] + Math.min(this._curT / this._focusT.durT, 1) * this._curObj[key];
 		}
