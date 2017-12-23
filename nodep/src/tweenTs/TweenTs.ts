@@ -11,14 +11,6 @@ class TweenTs implements IRender {
 	private static _tweenMap: Map<any, TweenTs> = new Map<any, TweenTs>();
 
 	/**
-	 * 设置到某个group中,可以通过group进行整体控制
-	 * @param  {string} n
-	 */
-	public static set groupName(n: string) {
-
-	}
-
-	/**
 	 * 移除某个对象的所有tween
 	 * @param  {any} t
 	 * @returns void
@@ -79,6 +71,15 @@ class TweenTs implements IRender {
 		this._focusT = null;
 		this._curObj = null;
 		this._startObj = null;
+	}
+
+
+	/**
+	 * 设置到某个group中,可以通过group进行整体控制
+	 * @param  {string} n
+	 */
+	public set groupName(n: string) {
+
 	}
 
 	/**

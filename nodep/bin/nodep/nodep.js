@@ -112,16 +112,6 @@ var TweenTs = (function () {
         this._ts = [];
         this._index = 0;
     }
-    Object.defineProperty(TweenTs, "groupName", {
-        /**
-         * 设置到某个group中,可以通过group进行整体控制
-         * @param  {string} n
-         */
-        set: function (n) {
-        },
-        enumerable: true,
-        configurable: true
-    });
     /**
      * 移除某个对象的所有tween
      * @param  {any} t
@@ -175,6 +165,16 @@ var TweenTs = (function () {
         this._curObj = null;
         this._startObj = null;
     };
+    Object.defineProperty(TweenTs.prototype, "groupName", {
+        /**
+         * 设置到某个group中,可以通过group进行整体控制
+         * @param  {string} n
+         */
+        set: function (n) {
+        },
+        enumerable: true,
+        configurable: true
+    });
     /**
      * 如果你是单独使用这个类,请在enterFrame事件中,传入两次调用的差。
      * 在Tween自身内部，不会来验证interval的真实和有效性。
@@ -2731,6 +2731,15 @@ var ServerTime = (function () {
         while (list.length > 0)
             list.pop();
         this._groupMap.delete(key);
+    };
+    /**
+     * 判断两天是否为同一天
+     * @param  {number} ms
+     * @returns boolean
+     */
+    ServerTime.isToday = function (ms) {
+        var t = this.getTime();
+        return TimeUtil.getTimeStr_1(t) == TimeUtil.getTimeStr_1(ms);
     };
     ServerTime.enterframe = function () {
         var i = 0;

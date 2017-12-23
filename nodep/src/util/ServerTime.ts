@@ -55,6 +55,16 @@ class ServerTime {
 		this._groupMap.delete(key);
 	}
 
+	/**
+	 * 判断两天是否为同一天
+	 * @param  {number} ms
+	 * @returns boolean
+	 */
+	public static isToday(ms: number): boolean {
+		var t: number = this.getTime();
+		return TimeUtil.getTimeStr_1(t) == TimeUtil.getTimeStr_1(ms);
+	}
+
 	private static enterframe(): void {
 		var i: number = 0;
 		var st: number = this.getTime();

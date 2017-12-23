@@ -41,11 +41,6 @@ declare class ObjPool {
 declare class TweenTs implements IRender {
     private static _tweenMap;
     /**
-     * 设置到某个group中,可以通过group进行整体控制
-     * @param  {string} n
-     */
-    static groupName: string;
-    /**
      * 移除某个对象的所有tween
      * @param  {any} t
      * @returns void
@@ -75,6 +70,11 @@ declare class TweenTs implements IRender {
     private _curObj;
     private _startObj;
     private dispose();
+    /**
+     * 设置到某个group中,可以通过group进行整体控制
+     * @param  {string} n
+     */
+    groupName: string;
     /**
      * 如果你是单独使用这个类,请在enterFrame事件中,传入两次调用的差。
      * 在Tween自身内部，不会来验证interval的真实和有效性。
@@ -1153,6 +1153,12 @@ declare class ServerTime {
      */
     static regist(key: string, handler: Function, thisObj: any, args: any[], t: number): void;
     static delGroup(key: string): void;
+    /**
+     * 判断两天是否为同一天
+     * @param  {number} ms
+     * @returns boolean
+     */
+    static isToday(ms: number): boolean;
     private static enterframe();
 }
 /**
