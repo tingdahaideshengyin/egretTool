@@ -21,6 +21,7 @@ class ListBox {
 	private _autoT: Function;
 	private _over: boolean = false;
 	public toBottomSpeed: number = 800;
+	public maxLen: number = 0;
 
 	/**
 	 * 通过一个容器与显示组件来构造一个List
@@ -158,6 +159,7 @@ class ListBox {
 		(render as ItemRender).updateData(d);
 		this._box.addChild(render);
 		this._items.push(render);
+		this.checkLen();
 		if (mc)
 			(render as ItemRender).playIn();
 		this.updatePoses(false, this._autoBottom, true);
@@ -172,7 +174,22 @@ class ListBox {
 	 */
 	public changeDatas(ds: any[]): void {
 		this._datas = ds;
+		this.checkLen();
 		this.updateDatas();
+	}
+
+	private checkLen(): void {
+		if (this.maxLen <= 0)
+			return;
+		while (this._datas.length > this.maxLen) {
+			this._datas.shift();
+		}
+		var render: any;
+		while (this._items.length > this._datas.length) {
+			render = this._items.shift();
+			this._gcItemds.push(render);
+			this._box.removeChild(render as egret.DisplayObject);
+		}
 	}
 
 	/**

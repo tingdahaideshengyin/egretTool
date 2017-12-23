@@ -3069,6 +3069,7 @@ var ListBox = (function () {
         this._bottomH = 0;
         this._over = false;
         this.toBottomSpeed = 800;
+        this.maxLen = 0;
         this._needUp = false;
         this._needDown = false;
         this._over = over;
@@ -3200,6 +3201,7 @@ var ListBox = (function () {
         render.updateData(d);
         this._box.addChild(render);
         this._items.push(render);
+        this.checkLen();
         if (mc)
             render.playIn();
         this.updatePoses(false, this._autoBottom, true);
@@ -3213,7 +3215,21 @@ var ListBox = (function () {
      */
     ListBox.prototype.changeDatas = function (ds) {
         this._datas = ds;
+        this.checkLen();
         this.updateDatas();
+    };
+    ListBox.prototype.checkLen = function () {
+        if (this.maxLen <= 0)
+            return;
+        while (this._datas.length > this.maxLen) {
+            this._datas.shift();
+        }
+        var render;
+        while (this._items.length > this._datas.length) {
+            render = this._items.shift();
+            this._gcItemds.push(render);
+            this._box.removeChild(render);
+        }
     };
     /**
      * 通过片动画的方式删除一个alpha

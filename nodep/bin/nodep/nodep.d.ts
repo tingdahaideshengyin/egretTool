@@ -1289,6 +1289,7 @@ declare class ListBox {
     private _autoT;
     private _over;
     toBottomSpeed: number;
+    maxLen: number;
     /**
      * 通过一个容器与显示组件来构造一个List
      * @param  {eui.Group} box
@@ -1327,6 +1328,7 @@ declare class ListBox {
      * @returns void
      */
     changeDatas(ds: any[]): void;
+    private checkLen();
     /**
      * 通过片动画的方式删除一个alpha
      * @param  {any} target
