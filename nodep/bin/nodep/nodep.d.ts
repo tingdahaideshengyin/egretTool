@@ -1393,6 +1393,7 @@ declare class NoAppResCenter {
      * @returns void
      */
     static initConfig(jsonName: string): void;
+    static append(key: string, values: string[]): void;
     /**
      * 获取类的名称,同时如果没有设置过这个类的资源列表,则进行设置
      * @param  {any} cls

@@ -25,6 +25,16 @@ class NoAppResCenter {
 		}
 	}
 
+	//手动添加
+	public static append(key: string, values: string[]): void {
+		var list: string[] = this._cfg.get(key);
+		while (values.length > 0) {
+			var v: string = values.pop();
+			if (values.indexOf(v) < 0)
+				list.push(v)
+		}
+	}
+
 	/**
 	 * 获取类的名称,同时如果没有设置过这个类的资源列表,则进行设置
 	 * @param  {any} cls

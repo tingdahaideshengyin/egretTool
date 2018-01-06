@@ -3456,6 +3456,15 @@ var NoAppResCenter = (function () {
             this._cfg.set(key, res[key]);
         }
     };
+    //手动添加
+    NoAppResCenter.append = function (key, values) {
+        var list = this._cfg.get(key);
+        while (values.length > 0) {
+            var v = values.pop();
+            if (values.indexOf(v) < 0)
+                list.push(v);
+        }
+    };
     /**
      * 获取类的名称,同时如果没有设置过这个类的资源列表,则进行设置
      * @param  {any} cls
@@ -3503,10 +3512,10 @@ var net;
             if (!this.canSend(url))
                 return;
             var request = new egret.HttpRequest();
+            // request.withCredentials = true;
             this._requestMap.set(request, url);
             request.responseType = egret.HttpResponseType.TEXT;
             request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-            // request.withCredentials = true;
             request.open(url, egret.HttpMethod.POST);
             request.send(args);
             request.addEventListener(egret.Event.COMPLETE, this.postCompletedHandler, this);

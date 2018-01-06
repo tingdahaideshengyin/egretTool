@@ -27,10 +27,10 @@ module net {
 			if (!this.canSend(url))
 				return;
 			var request: egret.HttpRequest = new egret.HttpRequest();
+			// request.withCredentials = true;
 			this._requestMap.set(request, url);
 			request.responseType = egret.HttpResponseType.TEXT;
 			request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-			// request.withCredentials = true;
 			request.open(url, egret.HttpMethod.POST);
 			request.send(args);
 			request.addEventListener(egret.Event.COMPLETE, this.postCompletedHandler, this);
