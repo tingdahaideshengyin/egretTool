@@ -2599,6 +2599,52 @@ var TimeUtil = (function () {
         else
             return sec + "秒";
     };
+    TimeUtil.getToday = function (t) {
+        return TimeUtil.getTimeStr_1(t);
+    };
+    TimeUtil.getYestoday = function (t) {
+        return TimeUtil.getTimeStr_1(t - 24 * 60 * 60 * 1000);
+    };
+    TimeUtil.getWeekStart = function (t) {
+        var d = new Date(t);
+        var cutD = d.getDay() == 0 ? 6 : d.getDay() - 1;
+        return TimeUtil.getTimeStr_1(t - cutD * 24 * 60 * 60 * 1000);
+    };
+    TimeUtil.getMonthStart = function (t) {
+        var d = new Date(t);
+        d.setDate(1);
+        return TimeUtil.getTimeStr_1(d.getTime());
+    };
+    TimeUtil.getLastMonthStart = function (t) {
+        var d = new Date(t);
+        var m = d.getMonth() - 1;
+        var y = d.getFullYear();
+        if (m < 0) {
+            m = 11;
+            y -= 1;
+        }
+        var ds = new Date(y, m, 1);
+        return TimeUtil.getTimeStr_1(ds.getTime());
+    };
+    TimeUtil.getLastMonthEnd = function (t) {
+        var d = new Date(t);
+        var m = d.getMonth() - 1;
+        var y = d.getFullYear();
+        if (m < 0) {
+            m = 11;
+            y -= 1;
+        }
+        var dt = new Date(y, m + 1, 0);
+        var maxDay = dt.getDate();
+        var ds = new Date(y, m, maxDay);
+        return TimeUtil.getTimeStr_1(ds.getTime());
+    };
+    TimeUtil.getWeekCn = function (str) {
+        var args = str.split("-");
+        var d = new Date(parseInt(args[0]), parseInt(args[1]) - 1, parseInt(args[2]));
+        return this.weekNames[d.getDay()];
+    };
+    TimeUtil.weekNames = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
     return TimeUtil;
 }());
 __reflect(TimeUtil.prototype, "TimeUtil");

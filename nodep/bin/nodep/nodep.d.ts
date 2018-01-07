@@ -1092,6 +1092,14 @@ declare class TimeUtil {
      * @returns string
      */
     static getLastStr_1(sec: number): string;
+    static getToday(t: number): string;
+    static getYestoday(t: number): string;
+    static getWeekStart(t: number): string;
+    static getMonthStart(t: number): string;
+    static getLastMonthStart(t: number): string;
+    static getLastMonthEnd(t: number): string;
+    private static weekNames;
+    static getWeekCn(str: string): string;
 }
 /**
  * eui常用的工具类
