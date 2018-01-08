@@ -59,6 +59,29 @@ class GameLayer extends egret.DisplayObjectContainer implements GameLayerInterfa
             this.removeChild(win);
         }
         this._wins.splice(this._wins.indexOf(win), 1);
+        WinsManager.getIns().checkLayerVisible();
+    }
+
+    //检查可见度
+    public checkVisible(): boolean {
+        var i: number = this.numChildren;
+        var has: boolean = false;
+        while (i-- > 0) {
+            var trg: any = this.getChildAt(i);
+            if (trg == this._popShape)
+                break;
+            var win: GameWindow;
+            if (trg instanceof GameWindow) {
+                win = trg;
+            } else if (trg.getChildAt(0) instanceof GameWindow) {
+                win = trg.getChildAt(0);
+            }
+            win.visible = !has;
+            if (win.isFull) {
+                has = true;
+            }
+        }
+        return has;
     }
 
     /**

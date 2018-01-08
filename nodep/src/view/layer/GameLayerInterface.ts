@@ -16,4 +16,11 @@ interface GameLayerInterface {
     clearLayer(): void;
 
     autoScale(): void;
+
+    /**
+     * 是否有全屏界面正在显示中
+     * 同时进行自检
+     * @returns boolean
+     */
+    checkVisible(): boolean;
 }

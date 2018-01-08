@@ -11,6 +11,7 @@ class WinsManager {
 	private _baseUi: eui.UILayer;
 	private _layerMap: Map<string, GameLayerInterface>;
 	private _windowMap: Map<any, GameWindow>;
+	private _layerNames: string[] = [];
 	public static stageWidth: number = 0;
 	public static stageHeight: number = 0;
 
@@ -26,6 +27,21 @@ class WinsManager {
 			WinsManager._ins = new WinsManager();
 		return WinsManager._ins;
 	}
+
+	public checkLayerVisible(): void {
+		var flag: boolean = false;
+		for (var i: number = 0; i < this._layerNames.length; i++) {
+			var ln: string = this._layerNames[i];
+			var ly: GameLayerInterface = this._layerMap.get(ln);
+			if (flag) {
+				ly["visible"] = false;
+			} else {
+				flag = ly.checkVisible();
+				ly["visible"] = true;
+			}
+		}
+	}
+
 	/**
 	 * 整个框架的初始化入口
 	 * @param  {eui.UILayer} ui
@@ -52,6 +68,7 @@ class WinsManager {
 	private addLayer(layerName: string, layer: GameLayerInterface, endable: boolean = true): void {
 		if (!endable)
 			(layer as GameLayer).touchEnabled = (layer as GameLayer).touchChildren = endable;
+		this._layerNames.unshift(layerName);
 		this._layerMap.set(layerName, layer);
 		this._baseUi.addChild(layer as GameLayer);
 		LogTrace.log("add layer:" + layerName);

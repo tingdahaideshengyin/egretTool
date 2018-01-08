@@ -300,6 +300,7 @@ var GameWindow = (function (_super) {
         _this.created = false;
         _this._backgrundColor = -1;
         _this.needDelayRemove = 0;
+        _this.isFull = false;
         _this._backgrundColor = backgrundColor;
         _this.typeName = typeName;
         _this.layerType = layerType;
@@ -333,6 +334,7 @@ var GameWindow = (function (_super) {
             this.autoScale();
         this.resize();
         this.updateSelf();
+        WinsManager.getIns().checkLayerVisible();
     };
     GameWindow.prototype.updateSelf = function () {
     };
@@ -349,6 +351,7 @@ var GameWindow = (function (_super) {
         this.resize();
         if (this.created)
             this.updateSelf();
+        WinsManager.getIns().checkLayerVisible();
     };
     GameWindow.prototype.addStageClose = function () {
         this.stage.addEventListener(egret.TouchEvent.TOUCH_TAP, this.autoCloseHandler, this);
@@ -1766,6 +1769,7 @@ __reflect(SoundManager.prototype, "SoundManager");
  */
 var WinsManager = (function () {
     function WinsManager() {
+        this._layerNames = [];
         this.$autoScaleX = 1;
         this.$autoScaleY = 1;
         if (WinsManager._ins != null)
@@ -1777,6 +1781,20 @@ var WinsManager = (function () {
         if (!WinsManager._ins)
             WinsManager._ins = new WinsManager();
         return WinsManager._ins;
+    };
+    WinsManager.prototype.checkLayerVisible = function () {
+        var flag = false;
+        for (var i = 0; i < this._layerNames.length; i++) {
+            var ln = this._layerNames[i];
+            var ly = this._layerMap.get(ln);
+            if (flag) {
+                ly["visible"] = false;
+            }
+            else {
+                flag = ly.checkVisible();
+                ly["visible"] = true;
+            }
+        }
     };
     /**
      * 整个框架的初始化入口
@@ -1804,6 +1822,7 @@ var WinsManager = (function () {
         if (endable === void 0) { endable = true; }
         if (!endable)
             layer.touchEnabled = layer.touchChildren = endable;
+        this._layerNames.unshift(layerName);
         this._layerMap.set(layerName, layer);
         this._baseUi.addChild(layer);
         LogTrace.log("add layer:" + layerName);
@@ -3430,6 +3449,29 @@ var GameLayer = (function (_super) {
             this.removeChild(win);
         }
         this._wins.splice(this._wins.indexOf(win), 1);
+        WinsManager.getIns().checkLayerVisible();
+    };
+    //检查可见度
+    GameLayer.prototype.checkVisible = function () {
+        var i = this.numChildren;
+        var has = false;
+        while (i-- > 0) {
+            var trg = this.getChildAt(i);
+            if (trg == this._popShape)
+                break;
+            var win;
+            if (trg instanceof GameWindow) {
+                win = trg;
+            }
+            else if (trg.getChildAt(0) instanceof GameWindow) {
+                win = trg.getChildAt(0);
+            }
+            win.visible = !has;
+            if (win.isFull) {
+                has = true;
+            }
+        }
+        return has;
     };
     /**
      * 刷新阻挡层

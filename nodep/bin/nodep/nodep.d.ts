@@ -120,6 +120,7 @@ declare class GameWindow extends eui.Component implements eui.UIComponent {
     private _backgrundColor;
     private _backBt;
     needDelayRemove: number;
+    isFull: boolean;
     private static _backShape;
     /**
      * 构造函数
@@ -351,6 +352,12 @@ interface GameLayerInterface {
     resize(): void;
     clearLayer(): void;
     autoScale(): void;
+    /**
+     * 是否有全屏界面正在显示中
+     * 同时进行自检
+     * @returns boolean
+     */
+    checkVisible(): boolean;
 }
 /**
  * 框架的基础配置文件,可通过window属性进行更改
@@ -764,10 +771,12 @@ declare class WinsManager {
     private _baseUi;
     private _layerMap;
     private _windowMap;
+    private _layerNames;
     static stageWidth: number;
     static stageHeight: number;
     private constructor();
     static getIns(): WinsManager;
+    checkLayerVisible(): void;
     /**
      * 整个框架的初始化入口
      * @param  {eui.UILayer} ui
@@ -1377,6 +1386,7 @@ declare class GameLayer extends egret.DisplayObjectContainer implements GameLaye
      * 移除一个界面
      */
     removeWindow(win: GameWindow): void;
+    checkVisible(): boolean;
     /**
      * 刷新阻挡层
      */

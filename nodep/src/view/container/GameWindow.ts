@@ -26,6 +26,7 @@ class GameWindow extends eui.Component implements eui.UIComponent {
     private _backgrundColor: number = -1;
     private _backBt: egret.Bitmap;
     public needDelayRemove: number = 0;
+    public isFull: boolean = false;
     private static _backShape: egret.Shape = new egret.Shape();
 
     /**
@@ -80,6 +81,7 @@ class GameWindow extends eui.Component implements eui.UIComponent {
             this.autoScale();
         this.resize();
         this.updateSelf();
+        WinsManager.getIns().checkLayerVisible();
     }
 
     protected updateSelf(): void {
@@ -98,6 +100,7 @@ class GameWindow extends eui.Component implements eui.UIComponent {
         this.resize();
         if (this.created)
             this.updateSelf();
+       WinsManager.getIns().checkLayerVisible();
     }
 
     protected addStageClose(): void {
