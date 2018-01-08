@@ -1391,6 +1391,7 @@ declare class GameLayer extends egret.DisplayObjectContainer implements GameLaye
      * 刷新阻挡层
      */
     private updateModel();
+    removePopShape(): void;
     /**
      * 界面大小变化
      */

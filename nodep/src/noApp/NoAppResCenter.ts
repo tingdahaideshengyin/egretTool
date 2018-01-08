@@ -27,6 +27,8 @@ class NoAppResCenter {
 
 	//手动添加
 	public static append(key: string, values: string[]): void {
+		if (!this._cfg.has(key))
+			this._cfg.set(key, []);
 		var list: string[] = this._cfg.get(key);
 		while (values.length > 0) {
 			var v: string = values.pop();

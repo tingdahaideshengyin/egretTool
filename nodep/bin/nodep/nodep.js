@@ -3480,26 +3480,23 @@ var GameLayer = (function (_super) {
         //添加
         if (this._popCount > 0 && (!this._popShape || !this._popShape.touchEnabled)) {
             if (!this._popShape) {
-                this._popShape = new egret.Shape();
+                this._popShape = new eui.Rect(100, 100, 0);
                 this._popShape.alpha = 0;
             }
-            this._popShape.graphics.clear();
-            this._popShape.graphics.beginFill(0x000000, 0.7);
-            this._popShape.graphics.drawRect(0, 0, WinsManager.stageWidth, WinsManager.stageHeight);
-            this._popShape.graphics.endFill;
+            this._popShape.width = WinsManager.stageWidth;
+            this._popShape.height = WinsManager.stageHeight;
             this._popShape.touchEnabled = true;
             this.addChildAt(this._popShape, 0);
-            TweenTs.removeTweens(this._popShape);
-            TweenTs.get(this._popShape).to({ alpha: 1 }, 200);
+            TweenTs.get(this._popShape).to({ alpha: 0.7 }, 200);
         } //删除
         else if (this._popCount <= 0 && (this._popShape && this._popShape.touchEnabled)) {
-            // this.removeChild(this._popShape);
-            // this._popShape.graphics.clear();
-            // this._popShape = null;
             this._popShape.touchEnabled = false;
-            TweenTs.removeTweens(this._popShape);
-            TweenTs.get(this._popShape).to({ alpha: 0 }, 200);
+            TweenTs.get(this._popShape, true, 1, this.removePopShape, this).to({ alpha: 0 }, 200);
         }
+    };
+    GameLayer.prototype.removePopShape = function () {
+        if (this._popShape.parent)
+            this._popShape.parent.removeChild(this._popShape);
     };
     /**
      * 界面大小变化
@@ -3546,6 +3543,8 @@ var NoAppResCenter = (function () {
     };
     //手动添加
     NoAppResCenter.append = function (key, values) {
+        if (!this._cfg.has(key))
+            this._cfg.set(key, []);
         var list = this._cfg.get(key);
         while (values.length > 0) {
             var v = values.pop();
