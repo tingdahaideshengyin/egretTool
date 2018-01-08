@@ -100,7 +100,7 @@ class GameWindow extends eui.Component implements eui.UIComponent {
         this.resize();
         if (this.created)
             this.updateSelf();
-       WinsManager.getIns().checkLayerVisible();
+        WinsManager.getIns().checkLayerVisible();
     }
 
     protected addStageClose(): void {
@@ -108,8 +108,11 @@ class GameWindow extends eui.Component implements eui.UIComponent {
     }
 
     private autoCloseHandler(evt: egret.TouchEvent): void {
-        if (evt.target instanceof egret.Shape)
-            WinsManager.getIns().closeWin(this);
+        var t: any = evt.target;
+        if (t instanceof eui.Rect) {
+            if (t.parent && t.parent instanceof GameLayer)
+                WinsManager.getIns().closeWin(this);
+        }
     }
 
     /**

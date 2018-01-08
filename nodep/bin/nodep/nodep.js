@@ -357,8 +357,11 @@ var GameWindow = (function (_super) {
         this.stage.addEventListener(egret.TouchEvent.TOUCH_TAP, this.autoCloseHandler, this);
     };
     GameWindow.prototype.autoCloseHandler = function (evt) {
-        if (evt.target instanceof egret.Shape)
-            WinsManager.getIns().closeWin(this);
+        var t = evt.target;
+        if (t instanceof eui.Rect) {
+            if (t.parent && t.parent instanceof GameLayer)
+                WinsManager.getIns().closeWin(this);
+        }
     };
     /**
      * 捕获消息
