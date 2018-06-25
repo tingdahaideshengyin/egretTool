@@ -94,10 +94,29 @@ class ListBox {
 		}
 		if (delayc)
 			DelayCall.call(50, this.toBottom, this, [false]);
+		this.updateVisible();
 	}
 
 	private _needUp: boolean = false;
 	private _needDown: boolean = false;
+
+	//刷新哪些是可见的,哪些是不可见的
+	private updateVisible(): void {
+		var render: any;
+		for (var i = 0; i < this._items.length; i++) {
+			render = this._items[i];
+			//判断上边界
+			if (render.y + render.height < this._box.scrollV) {
+				render.$setVisible(false);
+				continue;
+			}
+			if (render.y > this._box.scrollV + this._box.scrollRect.height) {
+				render.$setVisible(false);
+				continue;
+			}
+			render.$setVisible(true);
+		}
+	}
 
 	//触碰移动
 	private moveHandler(evt: eui.UIEvent): void {
@@ -117,6 +136,7 @@ class ListBox {
 			}
 			this._mh.apply(this._thisObj, [v]);
 		}
+		this.updateVisible();
 	}
 
 	//触碰结束
@@ -139,6 +159,7 @@ class ListBox {
 				this._downH.apply(this._thisObj, null);
 			}
 		}
+		this.updateVisible();
 	}
 
 	/**
@@ -280,5 +301,6 @@ class ListBox {
 		}
 		if (autoBottom)
 			this.toBottom(true, mcBottom);
+		this.updateVisible();
 	}
 }

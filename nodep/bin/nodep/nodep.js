@@ -3207,6 +3207,24 @@ var ListBox = (function () {
         }
         if (delayc)
             DelayCall.call(50, this.toBottom, this, [false]);
+        this.updateVisible();
+    };
+    //刷新哪些是可见的,哪些是不可见的
+    ListBox.prototype.updateVisible = function () {
+        var render;
+        for (var i = 0; i < this._items.length; i++) {
+            render = this._items[i];
+            //判断上边界
+            if (render.y + render.height < this._box.scrollV) {
+                render.$setVisible(false);
+                continue;
+            }
+            if (render.y > this._box.scrollV + this._box.scrollRect.height) {
+                render.$setVisible(false);
+                continue;
+            }
+            render.$setVisible(true);
+        }
     };
     //触碰移动
     ListBox.prototype.moveHandler = function (evt) {
@@ -3227,6 +3245,7 @@ var ListBox = (function () {
             }
             this._mh.apply(this._thisObj, [v]);
         }
+        this.updateVisible();
     };
     //触碰结束
     ListBox.prototype.outHandler = function (evt) {
@@ -3248,6 +3267,7 @@ var ListBox = (function () {
                 this._downH.apply(this._thisObj, null);
             }
         }
+        this.updateVisible();
     };
     /**
      * 增加一条信息到下面
@@ -3389,6 +3409,7 @@ var ListBox = (function () {
         }
         if (autoBottom)
             this.toBottom(true, mcBottom);
+        this.updateVisible();
     };
     return ListBox;
 }());

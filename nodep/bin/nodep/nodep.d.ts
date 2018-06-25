@@ -1331,6 +1331,7 @@ declare class ListBox {
     toBottom(delayc?: boolean, move?: boolean): void;
     private _needUp;
     private _needDown;
+    private updateVisible();
     private moveHandler(evt);
     private outHandler(evt);
     /**
@@ -1363,6 +1364,7 @@ interface ItemRender {
     updateData(d: any): any;
     getData(): any;
     playIn(): any;
+    $setVisible(value: boolean): boolean;
 }
 /**
  * 基础层级容器的实现
